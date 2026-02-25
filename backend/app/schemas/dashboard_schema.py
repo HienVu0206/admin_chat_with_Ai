@@ -1,5 +1,5 @@
-from pydantic import BaseModel
-from typing import List, Optional
+from pydantic import BaseModel, ConfigDict
+from typing import Optional
 from datetime import datetime
 
 # --- 1. Schema cho các Card thống kê (Summary) ---
@@ -27,5 +27,5 @@ class PendingReportItem(BaseModel):
     status: str
     target_type: str  # 'Post', 'Comment', 'User'
 
-    class Config:
-        from_attributes = True
+    # Sửa lại theo chuẩn Pydantic V2 (Thay thế cho class Config)
+    model_config = ConfigDict(from_attributes=True)

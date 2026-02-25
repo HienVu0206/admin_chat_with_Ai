@@ -1,8 +1,9 @@
+from typing import List, Any
+from datetime import datetime
 from sqlalchemy.orm import Session
 from sqlalchemy import func, case, desc
-from datetime import datetime
 
-# Đảm bảo đường dẫn import models đúng với dự án của ông
+# Đảm bảo đường dẫn import models đúng với dự án của bạn
 from app.models.models import Users, Messages, ForumPosts, Reports, Conversations
 
 class DashboardRepository:
@@ -35,7 +36,7 @@ class DashboardRepository:
             .filter(Messages.created_at >= time_threshold)\
             .distinct().count()
 
-    def get_message_stats_by_date(self, start_date: datetime):
+    def get_message_stats_by_date(self, start_date: datetime) -> List[Any]:
         return self.db.query(
             func.date(Messages.created_at).label('date'),
             func.sum(case((Messages.role == 'user', 1), else_=0)).label('user_count'),
@@ -48,7 +49,7 @@ class DashboardRepository:
             func.date(Messages.created_at)
         ).all()
 
-    def get_recent_pending_reports(self, limit: int = 5):
+    def get_recent_pending_reports(self, limit: int = 5) -> List[Reports]:
         return self.db.query(Reports).filter(
             Reports.status == 'pending'
         ).order_by(desc(Reports.created_at)).limit(limit).all()

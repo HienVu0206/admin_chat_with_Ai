@@ -15,6 +15,7 @@ router = APIRouter(
     tags=["Dashboard"]
 )
 
+# Hàm khởi tạo Service chuẩn DI
 def get_dashboard_service(db: Session = Depends(get_db)) -> DashboardService:
     return DashboardService(db)
 

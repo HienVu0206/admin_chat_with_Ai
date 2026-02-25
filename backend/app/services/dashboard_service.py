@@ -8,17 +8,29 @@ from app.schemas.dashboard_schema import (
     MessageChartPoint, 
     PendingReportItem
 )
+# Nhớ tạo file redis_client.py và cấu hình như hướng dẫn trước đó
+from app.core.redis_client import redis_client
+from app.core.config import settings
 
 class DashboardService:
     def __init__(self, db: Session):
         self.repo = DashboardRepository(db)
+        self.redis = redis_client
 
     def get_summary_stats(self) -> DashboardSummaryResponse:
+        cache_key = "dashboard:summary_stats"
+
+        # 1. Kiểm tra Cache (Redis) trước
+        cached_data = self.redis.get(cache_key)
+        if cached_data:
+            return DashboardSummaryResponse.model_validate_json(cached_data)
+
+        # 2. Nếu không có Cache, query từ Database
         now = datetime.now()
         start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
         last_24h = now - timedelta(hours=24)
 
-        return DashboardSummaryResponse(
+        response = DashboardSummaryResponse(
             total_users=self.repo.count_total_users(),
             new_users_today=self.repo.count_new_users(start_of_day),
             active_users_24h=self.repo.count_active_users_24h(last_24h),
@@ -27,6 +39,17 @@ class DashboardService:
             total_posts=self.repo.count_active_posts(),
             pending_reports=self.repo.count_pending_reports()
         )
+
+        # 3. Lưu kết quả vào Cache (Pydantic V2 dùng model_dump_json)
+        # Giả sử bạn set CACHE_EXPIRE_SECONDS = 300 trong config
+        cache_ttl = getattr(settings, 'CACHE_EXPIRE_SECONDS', 300) 
+        self.redis.setex(
+            name=cache_key,
+            time=cache_ttl,
+            value=response.model_dump_json()
+        )
+
+        return response
 
     def get_message_chart_data(self, days: int) -> List[MessageChartPoint]:
         start_date = datetime.now() - timedelta(days=days)
