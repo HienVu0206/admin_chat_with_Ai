@@ -8,15 +8,41 @@
           </svg>
           Quay lại
         </button>
-        <div class="header-title">
-          <h1>Dashboard Cosmic Chat</h1>
-          <p class="header-subtitle">Tổng quan hệ thống</p>
+        <div class="header-title" style="display: flex; align-items: center; justify-content: space-between; gap: 20px; width: 100%;">
+          <div>
+            <h1>Dashboard Cosmic Chat</h1>
+            <p class="header-subtitle">Tổng quan hệ thống</p>
+          </div>
+          
+          <div class="header-actions">
+            <router-link to="/users" class="action-btn user-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+              </svg>
+              Quản lý Users
+            </router-link>
+
+            <router-link to="/audit-logs" class="action-btn audit-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+              </svg>
+              Nhật ký hoạt động
+            </router-link>
+          </div>
+          
         </div>
       </div>
       <div class="header-time">{{ currentTime }}</div>
     </div>
 
-    <div v-if="loading" style="text-align: center; padding: 20px; color: #fff;">
+    <div v-if="loading" style="text-align: center; padding: 20px; color: #666;">
         Đang tải dữ liệu...
     </div>
 
@@ -152,44 +178,17 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
 
-// --- Cấu hình API URL ---
-// Nếu Backend chạy port 8000, Frontend port khác, cần set full URL hoặc config Proxy
-const API_BASE_URL = 'http://127.0.0.1:8000'; 
+// @ts-ignore
+const API_BASE_URL = import.meta.env?.VITE_API_URL || 'http://127.0.0.1:8000'; 
 
-// --- Interfaces cho dữ liệu ---
-interface DashboardSummary {
-  total_users: number;
-  new_users_today: number;
-  active_users_24h: number;
-  total_messages: number;
-  new_conversations_today: number;
-  total_posts: number;
-  pending_reports: number;
-}
-
-interface MessageChartPoint {
-  date: string;
-  user_count: number;
-  ai_count: number;
-}
-
-interface ChartItemDisplay {
-  dayLabel: string;   // T2, T3...
-  fullDate: string;   // 2023-10-20
-  total: number;      // user + ai
-  heightPercent: number; // Để vẽ CSS height
-}
-
-// --- State ---
 const loading = ref(true);
 const currentTime = ref('');
 
-// Giá trị mặc định ban đầu
-const stats = ref<DashboardSummary>({
+const stats = ref({
   total_users: 0,
   new_users_today: 0,
   active_users_24h: 0,
@@ -199,7 +198,7 @@ const stats = ref<DashboardSummary>({
   pending_reports: 0
 });
 
-const chartItems = ref<ChartItemDisplay[]>([]);
+const chartItems = ref([]);
 const msgDist = ref({
   userTotal: 0,
   userPercent: 0,
@@ -208,67 +207,64 @@ const msgDist = ref({
   totalPeriod: 0
 });
 
-// --- Functions ---
-
 const goBack = () => {
   window.history.back();
 };
 
-const formatNumber = (num: number) => {
+const formatNumber = (num) => {
   return new Intl.NumberFormat('en-US').format(num);
 };
 
-// Hàm lấy ngày trong tuần (CN, T2, T3...)
-const getDayLabel = (dateStr: string) => {
+const getDayLabel = (dateStr) => {
   const date = new Date(dateStr);
   const days = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
   return days[date.getDay()];
 };
 
-// --- Fetch Data ---
 const fetchData = async () => {
   try {
     loading.value = true;
 
-    // 1. Gọi API Summary
-    const summaryRes = await axios.get(`${API_BASE_URL}/dashboard/summary`);
+    const token = localStorage.getItem('access_token'); 
+    
+    const config = {
+      headers: { Authorization: `Bearer ${token}` }
+    };
+
+   const [summaryRes, chartRes] = await Promise.all([
+     axios.get(`${API_BASE_URL}/dashboard/summary`, config), 
+     axios.get(`${API_BASE_URL}/dashboard/charts/messages?days=7`, config)
+   ]);
+
     stats.value = summaryRes.data;
+    const rawChartData = chartRes.data;
 
-    // 2. Gọi API Charts (7 ngày)
-    const chartRes = await axios.get(`${API_BASE_URL}/dashboard/charts/messages?days=7`);
-    const rawChartData: MessageChartPoint[] = chartRes.data;
-
-    // --- Xử lý dữ liệu cho Biểu đồ Cột ---
-    // Tìm giá trị lớn nhất để tính % chiều cao
     let maxVal = 0;
+    let sumUser = 0;
+    let sumAI = 0;
+
     const processedData = rawChartData.map(item => {
       const total = item.user_count + item.ai_count;
       if (total > maxVal) maxVal = total;
+      
+      sumUser += item.user_count;
+      sumAI += item.ai_count;
+
       return {
         dayLabel: getDayLabel(item.date),
         fullDate: item.date,
         total: total,
         user: item.user_count,
         ai: item.ai_count,
-        heightPercent: 0 // Tính sau
+        heightPercent: 0 
       };
     });
 
-    // Tính % height (nếu max = 0 thì set 0 để tránh chia cho 0)
     chartItems.value = processedData.map(item => ({
       ...item,
       heightPercent: maxVal > 0 ? (item.total / maxVal) * 100 : 0
     }));
 
-    // --- Xử lý dữ liệu cho Thanh Phân Bố (Distribution) ---
-    // Cộng dồn 7 ngày qua
-    let sumUser = 0;
-    let sumAI = 0;
-    processedData.forEach(item => {
-      sumUser += item.user;
-      sumAI += item.ai;
-    });
-    
     const totalPeriod = sumUser + sumAI;
     msgDist.value = {
       userTotal: sumUser,
@@ -278,20 +274,22 @@ const fetchData = async () => {
       aiPercent: totalPeriod > 0 ? Math.round((sumAI / totalPeriod) * 100) : 0,
     };
 
-  } catch (error) {
+ } catch (error) {
     console.error("Lỗi khi tải dữ liệu dashboard:", error);
-    // Có thể thêm thông báo lỗi UI ở đây
+    if (error.response && error.response.status === 401) {
+       alert("Phiên đăng nhập đã hết hạn hoặc bạn không có quyền. Vui lòng đăng nhập lại!");
+       localStorage.removeItem('access_token');
+       window.location.href = '/login'; 
+    }
   } finally {
     loading.value = false;
   }
 };
 
-// --- Lifecycle ---
 onMounted(() => {
-  // Cập nhật đồng hồ
   const updateTime = () => {
     const now = new Date();
-    const options: Intl.DateTimeFormatOptions = {
+    const options = {
       weekday: 'long',
       year: 'numeric',
       month: 'numeric',
@@ -299,7 +297,6 @@ onMounted(() => {
       hour: '2-digit',
       minute: '2-digit'
     };
-    // Fix lỗi hiển thị tiếng Việt trên một số trình duyệt
     try {
         currentTime.value = now.toLocaleDateString('vi-VN', options);
     } catch (e) {
@@ -310,9 +307,52 @@ onMounted(() => {
   updateTime();
   setInterval(updateTime, 60000);
 
-  // Gọi API lấy dữ liệu
   fetchData();
 });
 </script>
 
 <style scoped src="../assets/css/dashboard.css"></style>
+
+<style scoped>
+/* CSS cho nhóm nút điều hướng */
+.header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+/* Nút Nhật ký hoạt động (Màu xanh dương) */
+.audit-btn {
+  background-color: #e0e7ff;
+  color: #4f46e5;
+}
+.audit-btn:hover {
+  background-color: #4f46e5;
+  color: #ffffff;
+  box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);
+}
+
+/* Nút Quản lý Users (Màu xanh lá) */
+.user-btn {
+  background-color: #dcfce7;
+  color: #16a34a;
+}
+.user-btn:hover {
+  background-color: #16a34a;
+  color: #ffffff;
+  box-shadow: 0 4px 6px -1px rgba(22, 163, 74, 0.2);
+}
+</style>

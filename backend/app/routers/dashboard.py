@@ -4,18 +4,17 @@ from typing import List
 
 from app.core.database import get_db
 from app.services.dashboard_service import DashboardService
-from app.schemas.dashboard_schema import (
-    DashboardSummaryResponse, 
-    MessageChartPoint, 
-    PendingReportItem
-)
+from app.schemas.dashboard_schema import DashboardSummaryResponse, MessageChartPoint, PendingReportItem
+from app.models.models import Users
+from app.core.security import get_current_admin # THÊM IMPORT NÀY
 
+# Khai báo dependencies ở mức Router để bảo vệ TẤT CẢ các API bên trong
 router = APIRouter(
     prefix="/dashboard",
-    tags=["Dashboard"]
+    tags=["Dashboard"],
+    dependencies=[Depends(get_current_admin)] # BẮT BUỘC PHẢI LÀ ADMIN
 )
 
-# Hàm khởi tạo Service chuẩn DI
 def get_dashboard_service(db: Session = Depends(get_db)) -> DashboardService:
     return DashboardService(db)
 

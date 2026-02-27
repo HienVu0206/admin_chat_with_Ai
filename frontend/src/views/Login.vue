@@ -30,6 +30,7 @@
               type="email"
               placeholder="name@example.com"
               required
+              :disabled="isLoading"
             />
           </div>
         </div>
@@ -47,6 +48,7 @@
               :type="showPassword ? 'text' : 'password'"
               placeholder="••••••••"
               required
+              :disabled="isLoading"
             />
 
             <div class="password-toggle" @click="showPassword = !showPassword">
@@ -57,7 +59,7 @@
         </div>
 
         <div class="form-checkbox">
-          <input id="remember" v-model="rememberMe" type="checkbox" />
+          <input id="remember" v-model="rememberMe" type="checkbox" :disabled="isLoading" />
           <label for="remember">Ghi nhớ đăng nhập</label>
         </div>
 
@@ -73,7 +75,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { api } from '../api' 
+import axios from 'axios' // Cần import axios để gọi API
 
 const router = useRouter()
 const email = ref('')
@@ -84,30 +86,44 @@ const isLoading = ref(false)
 const errorMessage = ref('')
 
 const handleLogin = async () => {
-  isLoading.value = true
-  errorMessage.value = ''
-
+  // Reset thông báo lỗi và bật trạng thái loading
+  errorMessage.value = '';
+  isLoading.value = true;
+  
   try {
-    const response = await api.post('/admin/login', {
-      email: email.value,
-      password: password.value
-    })
+    // Ép kiểu dữ liệu sang Form-Data chuẩn OAuth2
+    const formData = new URLSearchParams();
+    formData.append('username', email.value); 
+    formData.append('password', password.value); 
 
-    const { access_token } = response.data
-    localStorage.setItem('access_token', access_token)
-    router.push('/dashboard')
+    // Gọi API login
+    const response = await axios.post('http://127.0.0.1:8000/admin/login', formData, {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    });
+
+    // Nếu thành công -> lưu token vào localStorage
+    localStorage.setItem('access_token', response.data.access_token);
+    console.log("Đăng nhập thành công!");
+    
+    // Điều hướng ngay lập tức sang trang Dashboard
+    router.push('/dashboard');
 
   } catch (error) {
-    console.error('Login error:', error)
-    if (error.response && error.response.data) {
-        errorMessage.value = error.response.data.detail || 'Đăng nhập thất bại'
+    console.error("Lỗi đăng nhập:", error);
+    
+    // Xử lý hiển thị thông báo lỗi tùy theo phản hồi từ Server
+    if (error.response && error.response.data && error.response.data.detail) {
+      errorMessage.value = error.response.data.detail; // Hiện lỗi 401: Sai mật khẩu/tài khoản
     } else {
-        errorMessage.value = 'Lỗi kết nối máy chủ'
+      errorMessage.value = 'Đăng nhập thất bại. Vui lòng kiểm tra lại kết nối mạng.';
     }
   } finally {
-    isLoading.value = false
+    // Tắt loading sau khi hoàn tất (dù thành công hay lỗi)
+    isLoading.value = false;
   }
-}
+};
 </script>
 
 <style scoped src="../assets/css/login.css"></style>

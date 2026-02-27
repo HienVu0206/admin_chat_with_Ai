@@ -116,6 +116,19 @@ class PostLikes(Base):
     user = relationship('Users', back_populates='likes')
     post = relationship('ForumPosts', back_populates='likes')
 
+    
+class AdminActionLogs(Base):
+    __tablename__ = 'admin_action_logs'
+    id = Column(Integer, primary_key=True, index=True)
+    admin_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    action = Column(String(50), nullable=False)     # VD: "CHANGE_ROLE", "BAN_USER"
+    target_id = Column(Integer, nullable=True)      # ID của đối tượng bị tác động (user_id, post_id...)
+    details = Column(String(255), nullable=True)    # Mô tả chi tiết
+    created_at = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
+
+    # Quan hệ ngược lại với bảng Users (Admin thực hiện)
+    admin = relationship('Users', foreign_keys=[admin_id])
+
 class Reports(Base):
     __tablename__ = 'reports'
     id = Column(Integer, primary_key=True, index=True)
@@ -131,3 +144,5 @@ class Reports(Base):
     reported_user = relationship('Users', foreign_keys=[reported_user_id], back_populates='reports_received')
     post = relationship('ForumPosts', back_populates='reports')
     comment = relationship('ForumComments', back_populates='reports')
+
+    

@@ -1,7 +1,8 @@
 from typing import List, Any
 from datetime import datetime
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session,joinedload
 from sqlalchemy import func, case, desc
+from typing import Optional
 
 # Đảm bảo đường dẫn import models đúng với dự án của bạn
 from app.models.models import Users, Messages, ForumPosts, Reports, Conversations
@@ -50,6 +51,13 @@ class DashboardRepository:
         ).all()
 
     def get_recent_pending_reports(self, limit: int = 5) -> List[Reports]:
-        return self.db.query(Reports).filter(
-            Reports.status == 'pending'
-        ).order_by(desc(Reports.created_at)).limit(limit).all()
+        return self.db.query(Reports)\
+            .options(joinedload(Reports.reporter))\
+            .filter(Reports.status == 'pending')\
+            .order_by(desc(Reports.created_at))\
+            .limit(limit)\
+            .all()
+    
+    def get_report_by_id(self, report_id: int) -> Optional[Reports]:
+        """Lấy một báo cáo cụ thể dựa vào ID"""
+        return self.db.query(Reports).filter(Reports.id == report_id).first()
