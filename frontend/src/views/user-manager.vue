@@ -2,147 +2,89 @@
   <div class="user-management-container">
     <div class="page-header">
       <div class="header-content">
-        <button class="back-btn" @click="goBack">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-            <path d="M19 12H5M12 19l-7-7 7-7"/>
-          </svg>
-          Quay lại
-        </button>
+        <button class="back-btn" @click="goBack">Quay lại</button>
         <div class="header-title">
           <h1>Quản lý Người dùng</h1>
-          <p class="header-subtitle">Cấp quyền và quản lý tài khoản</p>
         </div>
       </div>
     </div>
 
     <div class="toolbar">
       <div class="search-wrapper">
-        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-        </svg>
-        <input v-model="searchQuery" type="text" placeholder="Tìm kiếm theo Email hoặc Tên..." class="search-input"/>
+        <input v-model="searchQuery" @input="debouncedSearch" type="text" placeholder="Tìm kiếm..." class="search-input" />
       </div>
-      
       <div class="filters">
-        <select v-model="filterStatus" class="filter-select">
-          <option value="">Tất cả trạng thái</option>
-          <option value="active">Active</option>
-          <option value="banned">Banned</option>
-        </select>
-        
-        <select v-model="filterRole" class="filter-select">
-          <option value="">Tất cả quyền hạn</option>
-          <option v-for="role in rolesList" :key="role.id" :value="role.name">
-            {{ formatRoleName(role.name) }}
-          </option>
+        <select v-model="filterRoleId" @change="fetchUsers" class="filter-select">
+          <option :value="null">Tất cả quyền hạn</option>
+          <option v-for="role in rolesList" :key="role.id" :value="role.id">{{ role.name }}</option>
         </select>
       </div>
     </div>
 
-    <div v-if="isFetching" style="text-align: center; padding: 20px; color: #666;">
-      Đang tải dữ liệu người dùng...
-    </div>
-
-    <div v-else class="table-wrapper">
+    <div class="table-wrapper">
       <table class="users-table">
         <thead>
           <tr>
-            
+            <th>ID</th>
             <th>Người dùng</th>
-            <th>Ngày tham gia</th>
             <th>Trạng thái</th>
             <th>Quyền hạn</th>
             <th>Hành động</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-if="filteredUsers.length === 0">
-            <td colspan="6" style="text-align: center; padding: 20px;">Không tìm thấy người dùng nào.</td>
-          </tr>
-          
-          <tr v-for="user in filteredUsers" :key="user.id" class="user-row">
-            <!-- <td class="user-id">{{ user.id }}</td> -->
+          <tr v-for="user in users" :key="user.id">
+            <td>#{{ user.id }}</td>
             <td class="user-info">
-              <div class="user-avatar">{{ user.full_name ? user.full_name.charAt(0).toUpperCase() : 'U' }}</div>
-              <div class="user-details">
-                <div class="user-name">{{ user.full_name }}</div>
-                <div class="user-email">{{ user.email }}</div>
-              </div>
+              <div class="user-name">{{ user.full_name }}</div>
+              <div class="user-email">{{ user.email }}</div>
             </td>
-            <td class="join-date">{{ formatDate(user.created_at) }}</td>
+            
             <td class="status-cell">
-              <span :class="['badge', `badge-${user.status}`]">
+              <span :class="['badge', user.status === 'active' ? 'badge-active' : 'badge-banned']">
                 {{ user.status === 'active' ? 'Active' : 'Banned' }}
               </span>
             </td>
+
             <td class="role-cell">
               <select 
-                :value="user.role" 
+                :value="user.role_id" 
                 @change="onRoleChange(user, $event)" 
-                class="role-select" 
-                :disabled="user.status === 'banned'"
+                class="role-select"
+                :disabled="user.status !== 'active'" 
               >
-                <option v-for="role in rolesList" :key="role.id" :value="role.name">
-                  {{ formatRoleName(role.name) }}
-                </option>
+                <option v-for="role in rolesList" :key="role.id" :value="role.id">{{ role.name }}</option>
               </select>
             </td>
+
             <td class="actions-cell">
-              <div class="action-buttons">
-                <button 
-                  v-if="user.status === 'active'" 
-                  class="btn-action btn-ban" 
-                  @click="openBanConfirm(user)"
-                  title="Khóa tài khoản"
-                >
-                  <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/>
-                  </svg>
-                  Khóa
-                </button>
-                <button 
-                  v-else 
-                  class="btn-action btn-unban" 
-                  @click="openUnbanConfirm(user)"
-                  title="Mở khóa tài khoản"
-                >
-                  <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                  </svg>
-                  Mở khóa
-                </button>
-              </div>
+              <button 
+                v-if="user.status === 'active'" 
+                class="btn-action btn-ban" 
+                @click="openConfirm(user, 'ban')"
+              >
+                Khóa
+              </button>
+              <button 
+                v-else 
+                class="btn-action btn-unban" 
+                @click="openConfirm(user, 'unban')"
+              >
+                Mở khóa
+              </button>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
 
-    <div v-if="confirmDialog.show" class="modal-overlay" @click.self="cancelChange">
+    <div v-if="confirmDialog.show" class="modal-overlay">
       <div class="modal-content">
-        <template v-if="confirmDialog.action === 'role'">
-          <h3>Xác nhận thay đổi quyền hạn</h3>
-          <p>Bạn có chắc chắn muốn đổi quyền của <strong>{{ confirmDialog.userName }}</strong> thành <strong>{{ formatRoleName(confirmDialog.newRole) }}</strong> không?</p>
-        </template>
-        <template v-else-if="confirmDialog.action === 'ban'">
-          <h3>Khóa tài khoản người dùng</h3>
-          <p>Bạn có chắc chắn muốn khóa tài khoản <strong>{{ confirmDialog.userName }}</strong>? Người dùng này sẽ không thể đăng nhập.</p>
-        </template>
-        <template v-else-if="confirmDialog.action === 'unban'">
-          <h3>Mở khóa tài khoản người dùng</h3>
-          <p>Bạn có chắc chắn muốn mở khóa tài khoản <strong>{{ confirmDialog.userName }}</strong>?</p>
-        </template>
-        
+        <h3>Xác nhận</h3>
+        <p>{{ confirmDialog.message }}</p>
         <div class="modal-actions">
-          <button class="btn btn-cancel" @click="cancelChange">Hủy</button>
-          <button 
-            class="btn btn-confirm" 
-            :class="{ 'btn-danger': confirmDialog.action === 'ban' }" 
-            @click="confirmChange" 
-            :disabled="isLoading"
-          >
-            {{ isLoading ? 'Đang xử lý...' : 'Đồng ý' }}
-          </button>
+          <button @click="confirmDialog.show = false" class="btn btn-cancel">Hủy</button>
+          <button @click="submitChange" class="btn btn-confirm">Đồng ý</button>
         </div>
       </div>
     </div>
@@ -150,174 +92,154 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 import axios from 'axios';
 
-// Bịt mắt trình duyệt lỗi của VS Code bằng dòng @ts-ignore bên dưới
 // @ts-ignore
 const API_BASE_URL = import.meta.env?.VITE_API_URL || 'http://127.0.0.1:8000';
 
-// Cập nhật Interface User
+// Interface khớp 100% với Database của bạn
 interface User {
   id: number;
   full_name: string;
   email: string;
   created_at: string;
-  status: 'active' | 'banned';
-  role: string; // Chuyển sang string thay vì fix cứng 'user' | 'admin'
+  status: string;     // 'active' hoặc 'banned'
+  role_id: number;    // ID dạng số (1, 2, 3...)
 }
 
-// Thêm Interface cho Role
-interface Role {
-  id: number;
-  name: string;
-  description?: string;
-}
-
-const searchQuery = ref('');
-const filterStatus = ref('');
-const filterRole = ref('');
-const isLoading = ref(false);
-const isFetching = ref(false);
+interface Role { id: number; name: string; }
 
 const users = ref<User[]>([]);
-const rolesList = ref<Role[]>([]); // Biến lưu danh sách Role từ API
+const rolesList = ref<Role[]>([]);
+const searchQuery = ref('');
+const filterRoleId = ref<number | null>(null);
+const confirmDialog = ref({ show: false, action: '', data: null as any, message: '' });
 
-const confirmDialog = ref({
-  show: false,
-  userId: 0,
-  userName: '',
-  newRole: '',
-  action: '' as 'role' | 'ban' | 'unban',
-});
-
-// Helper lấy Token
-const getAuthConfig = () => {
+const getHeaders = () => {
   const token = localStorage.getItem('access_token');
-  return {
-    headers: { Authorization: `Bearer ${token}` }
+  return { headers: { Authorization: `Bearer ${token}` } };
+};
+
+const fetchUsers = async () => {
+  try {
+    const params: any = {};
+    if (searchQuery.value) params.search = searchQuery.value;
+    if (filterRoleId.value) params.role_id = filterRoleId.value;
+    
+    const res = await axios.get(`${API_BASE_URL}/admin/users`, { ...getHeaders(), params });
+    users.value = res.data;
+  } catch (e) { console.error(e); }
+};
+
+const fetchRoles = async () => {
+    try {
+        const res = await axios.get(`${API_BASE_URL}/admin/roles`, getHeaders());
+        rolesList.value = res.data;
+    } catch (e) { console.error(e); }
+};
+
+// --- LOGIC XỬ LÝ ---
+
+const onRoleChange = (user: User, event: Event) => {
+  const newRoleId = Number((event.target as HTMLSelectElement).value);
+  if (newRoleId === user.role_id) return;
+  (event.target as HTMLSelectElement).value = String(user.role_id); // Reset UI chờ confirm
+
+  // Tìm tên role để hiển thị thông báo cho đẹp
+  const roleName = rolesList.value.find(r => r.id === newRoleId)?.name || newRoleId;
+
+  confirmDialog.value = {
+    show: true,
+    action: 'change_role',
+    data: { userId: user.id, newRoleId },
+    message: `Bạn muốn đổi quyền của "${user.full_name}" thành "${roleName}"?`
   };
 };
 
-// Xử lý lỗi chung
-const handleApiError = (error: any) => {
-  console.error('API Error:', error);
-  if (error.response && error.response.status === 401) {
-    alert("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
-    localStorage.removeItem('access_token');
-    window.location.href = '/login';
-  } else {
-    alert(error.response?.data?.detail || "Đã xảy ra lỗi. Vui lòng thử lại!");
-  }
+const openConfirm = (user: User, type: 'ban' | 'unban') => {
+  confirmDialog.value = {
+    show: true,
+    action: type,
+    data: { userId: user.id },
+    message: `Bạn có chắc muốn ${type === 'ban' ? 'KHÓA' : 'MỞ KHÓA'} tài khoản "${user.full_name}"?`
+  };
 };
 
-// API 1: Lấy danh sách Roles
-const fetchRoles = async () => {
+const submitChange = async () => {
+  const { action, data } = confirmDialog.value;
+  confirmDialog.value.show = false;
+
   try {
-    const response = await axios.get(`${API_BASE_URL}/admin/roles`, getAuthConfig());
-    rolesList.value = response.data;
-  } catch (error) {
-    console.error("Lỗi khi tải danh sách roles:", error);
+    if (action === 'change_role') {
+      // FIXED: Gửi JSON Body chuẩn theo Swagger
+      // URL: PUT /admin/users/{id}/role
+      // Body: { "new_role_id": 1 }
+      await axios.put(
+        `${API_BASE_URL}/admin/users/${data.userId}/role`, 
+        { new_role_id: data.newRoleId }, 
+        getHeaders()
+      );
+    } 
+    else if (action === 'ban' || action === 'unban') {
+      // FIXED: Gọi API update status mới thêm ở Python
+      const newStatus = action === 'ban' ? 'banned' : 'active';
+      await axios.put(
+        `${API_BASE_URL}/admin/users/${data.userId}/status`,
+        { status: newStatus },
+        getHeaders()
+      );
+    }
+    
+    await fetchUsers(); // Tải lại danh sách
+    alert("Thành công!");
+  } catch (error: any) {
+    console.error(error);
+    const msg = error.response?.data?.detail || "Lỗi API";
+    alert("Lỗi: " + JSON.stringify(msg));
   }
 };
 
-// API 2: Lấy danh sách Users
-const fetchUsers = async () => {
-  isFetching.value = true;
-  try {
-    const response = await axios.get(`${API_BASE_URL}/admin/users`, getAuthConfig());
-    users.value = response.data;
-  } catch (error) {
-    handleApiError(error);
-  } finally {
-    isFetching.value = false;
-  }
+// Debounce Search
+let timeout: any;
+const debouncedSearch = () => {
+  clearTimeout(timeout);
+  timeout = setTimeout(fetchUsers, 500);
 };
 
-// Gọi cả 2 API khi mount
 onMounted(() => {
   fetchRoles();
   fetchUsers();
 });
 
-// Tiện ích format tên Role (viết hoa chữ cái đầu)
-const formatRoleName = (roleName: string) => {
-  if (!roleName) return '';
-  return roleName.charAt(0).toUpperCase() + roleName.slice(1);
-};
-
-// Computed Search & Filter
-const filteredUsers = computed(() => {
-  return users.value.filter(user => {
-    const nameStr = user.full_name ? user.full_name.toLowerCase() : '';
-    const emailStr = user.email ? user.email.toLowerCase() : '';
-    const searchStr = searchQuery.value.toLowerCase();
-    
-    const matchesSearch = nameStr.includes(searchStr) || emailStr.includes(searchStr);
-    const matchesStatus = !filterStatus.value || user.status === filterStatus.value;
-    const matchesRole = !filterRole.value || user.role === filterRole.value;
-    
-    return matchesSearch && matchesStatus && matchesRole;
-  });
-});
-
-const formatDate = (dateStr: string) => {
-  if (!dateStr) return 'N/A';
-  const date = new Date(dateStr);
-  return date.toLocaleDateString('vi-VN', { year: 'numeric', month: '2-digit', day: '2-digit' });
-};
-
-// Mở Modal Xác Nhận đổi Role
-const onRoleChange = (user: User, event: Event) => {
-  const newRole = (event.target as HTMLSelectElement).value; // Bỏ ép kiểu hẹp
-  if (newRole !== user.role) {
-    confirmDialog.value = { show: true, userId: user.id, userName: user.full_name, newRole, action: 'role' };
-    (event.target as HTMLSelectElement).value = user.role; // Đặt lại select chờ xác nhận
-  }
-};
-
-const openBanConfirm = (user: User) => {
-  confirmDialog.value = { show: true, userId: user.id, userName: user.full_name, newRole: '', action: 'ban' };
-};
-
-const openUnbanConfirm = (user: User) => {
-  confirmDialog.value = { show: true, userId: user.id, userName: user.full_name, newRole: '', action: 'unban' };
-};
-
-// API: Submit thay đổi
-const confirmChange = async () => {
-  isLoading.value = true;
-  try {
-    const userId = confirmDialog.value.userId;
-    const config = getAuthConfig();
-
-    if (confirmDialog.value.action === 'role') {
-      // Gọi API cập nhật role
-      await axios.put(`${API_BASE_URL}/admin/users/${userId}/role`, { role: confirmDialog.value.newRole }, config);
-    } 
-    else if (confirmDialog.value.action === 'ban') {
-      await axios.post(`${API_BASE_URL}/admin/users/${userId}/ban`, {}, config);
-    } 
-    else if (confirmDialog.value.action === 'unban') {
-      await axios.post(`${API_BASE_URL}/admin/users/${userId}/unban`, {}, config);
-    }
-
-    await fetchUsers(); 
-    cancelChange();
-  } catch (error) {
-    handleApiError(error);
-  } finally {
-    isLoading.value = false;
-  }
-};
-
-const cancelChange = () => {
-  confirmDialog.value.show = false;
-};
-
-const goBack = () => {
-  window.history.back();
-};
+const goBack = () => window.history.back();
 </script>
 
-<style scoped src="../assets/css/user-manager.css"></style>
+<style scoped>
+/* CSS giữ nguyên cho đẹp */
+.user-management-container { padding: 24px; background: #f8f9fa; min-height: 100vh; font-family: 'Inter', sans-serif; }
+.page-header { background: white; padding: 20px; border-radius: 12px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+.back-btn { padding: 8px 12px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer; margin-bottom: 10px; }
+.toolbar { display: flex; gap: 16px; margin-bottom: 20px; }
+.search-input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px; }
+.filter-select { padding: 10px; border: 1px solid #ddd; border-radius: 8px; }
+.table-wrapper { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+.users-table { width: 100%; border-collapse: collapse; }
+.users-table th, .users-table td { padding: 16px; text-align: left; border-bottom: 1px solid #eee; }
+.users-table th { background: #f9fafb; font-weight: 600; color: #666; font-size: 13px; text-transform: uppercase; }
+
+.badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+.badge-active { background: #d1fae5; color: #047857; }
+.badge-banned { background: #fee2e2; color: #b91c1c; }
+
+.role-select { padding: 6px; border-radius: 6px; border: 1px solid #ddd; }
+.btn-action { padding: 6px 12px; border-radius: 6px; border: 1px solid; cursor: pointer; font-size: 12px; font-weight: 500; }
+.btn-ban { background: #fff1f2; border-color: #fecdd3; color: #e11d48; }
+.btn-unban { background: #ecfdf5; border-color: #a7f3d0; color: #059669; }
+
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 99; }
+.modal-content { background: white; padding: 24px; border-radius: 12px; width: 400px; max-width: 90%; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+.btn-confirm { background: #2563eb; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+.btn-cancel { background: #f3f4f6; color: #333; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+</style>
