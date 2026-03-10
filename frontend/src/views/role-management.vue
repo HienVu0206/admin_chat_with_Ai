@@ -1,6 +1,5 @@
 <template>
   <div class="role-management-container">
-    <!-- Header -->
     <div class="page-header">
       <div class="header-content">
         <button class="back-btn" @click="goBack">
@@ -16,7 +15,6 @@
       </div>
     </div>
 
-    <!-- Toolbar -->
     <div class="toolbar">
       <div class="search-wrapper">
         <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -32,28 +30,27 @@
       </button>
     </div>
 
-    <!-- Roles Table -->
     <div class="table-wrapper">
       <table class="roles-table">
         <thead>
           <tr>
-            <th>ID</th>
+            <!-- <th>ID</th> -->
             <th>Tên quyền hạn</th>
             <th>Mô tả</th>
-            <th>Số người dùng</th>
-            <th>Ngày tạo</th>
+            <!-- <th>Số người dùng</th>
+            <th>Ngày tạo</th> -->
             <th>Hành động</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="role in filteredRoles" :key="role.id" class="role-row">
-            <td class="role-id">{{ role.id }}</td>
+            <!-- <td class="role-id">{{ role.id }}</td> -->
             <td class="role-name">
               <div class="role-badge" :style="{ backgroundColor: role.color }">{{ role.name }}</div>
             </td>
             <td class="role-description">{{ role.description }}</td>
-            <td class="role-users">{{ role.userCount }}</td>
-            <td class="role-date">{{ formatDate(role.createdAt) }}</td>
+            <!-- <td class="role-users">{{ role.userCount }}</td>
+            <td class="role-date">{{ formatDate(role.createdAt) }}</td> -->
             <td class="actions-cell">
               <div class="action-buttons">
                 <button class="btn-action btn-edit" @click="openEditForm(role)" title="Chỉnh sửa">
@@ -76,7 +73,6 @@
       </table>
     </div>
 
-    <!-- Add/Edit Form Modal -->
     <div v-if="formModal.show" class="modal-overlay" @click.self="closeForm">
       <div class="modal-content">
         <div class="modal-header">
@@ -95,21 +91,6 @@
             <textarea v-model="formData.description" placeholder="Mô tả về quyền hạn..." class="form-textarea"></textarea>
           </div>
 
-          <div class="form-group">
-            <label>Màu sắc</label>
-            <div class="color-picker">
-              <button 
-                v-for="color in colors" 
-                :key="color" 
-                type="button"
-                class="color-option"
-                :style="{ backgroundColor: color }"
-                :class="{ active: formData.color === color }"
-                @click="formData.color = color"
-              ></button>
-            </div>
-          </div>
-
           <div class="form-actions">
             <button type="button" class="btn btn-cancel" @click="closeForm">Hủy</button>
             <button type="submit" class="btn btn-confirm" :disabled="isLoading">
@@ -120,7 +101,6 @@
       </div>
     </div>
 
-    <!-- Delete Confirmation Modal -->
     <div v-if="deleteConfirm.show" class="modal-overlay" @click.self="cancelDelete">
       <div class="modal-content">
         <h3>Xác nhận xóa quyền hạn</h3>
@@ -137,7 +117,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 
 interface Role {
   id: number;
@@ -148,37 +128,14 @@ interface Role {
   createdAt: string;
 }
 
+const API_BASE_URL = 'http://localhost:8000/admin';
+
 const searchQuery = ref('');
 const isLoading = ref(false);
+const roles = ref<Role[]>([]); 
 
+//lấy màu ở đây
 const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#6366f1'];
-
-const roles = ref<Role[]>([
-  {
-    id: 1,
-    name: 'Admin',
-    description: 'Quản trị viên hệ thống - có toàn quyền',
-    color: '#ef4444',
-    userCount: 3,
-    createdAt: '2024-01-15',
-  },
-  {
-    id: 2,
-    name: 'User',
-    description: 'Người dùng bình thường',
-    color: '#3b82f6',
-    userCount: 245,
-    createdAt: '2024-01-01',
-  },
-  {
-    id: 3,
-    name: 'Moderator',
-    description: 'Điều phối viên - quản lý nội dung',
-    color: '#f59e0b',
-    userCount: 8,
-    createdAt: '2024-02-01',
-  },
-]);
 
 const formModal = ref({
   show: false,
@@ -189,7 +146,6 @@ const formData = ref({
   id: 0,
   name: '',
   description: '',
-  color: '#3b82f6',
 });
 
 const deleteConfirm = ref({
@@ -205,29 +161,120 @@ const filteredRoles = computed(() => {
   );
 });
 
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('access_token');
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  };
+};
+
+// 1. LẤY DANH SÁCH ROLE: ĐỒNG BỘ DỮ LIỆU TỪ DB SANG FRONTEND
+const fetchRoles = async () => {
+  try {
+    isLoading.value = true;
+    const response = await fetch(`${API_BASE_URL}/roles`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    
+    if (!response.ok) throw new Error('Không thể tải danh sách quyền hạn');
+    const data = await response.json();
+    
+    // Ánh xạ dữ liệu để tránh lỗi giao diện
+    roles.value = data.map((item: any, index: number) => ({
+      id: item.id,
+      name: item.name || 'Không có tên',
+      description: item.description || '',
+      color: colors[index % colors.length], // Gán màu ngẫu nhiên cho đẹp giao diện
+      userCount: 0, // Mock data
+      createdAt: new Date().toISOString() // Mock data
+    }));
+    
+  } catch (error) {
+    console.error('Lỗi khi fetch roles:', error);
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// 2. XỬ LÝ FORM THÊM/SỬA: CHỈ GỬI NAME VÀ DESCRIPTION
+const submitForm = async () => {
+  isLoading.value = true;
+  try {
+    // Chỉ gửi các trường có trong Database của bạn
+    const payload = {
+      name: formData.value.name,
+      description: formData.value.description,
+      // Có thể thêm: is_active: 1 nếu API yêu cầu
+    };
+
+    if (formModal.value.mode === 'add') {
+      const response = await fetch(`${API_BASE_URL}/roles`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) throw new Error('Lỗi khi thêm quyền hạn');
+    } else {
+      const response = await fetch(`${API_BASE_URL}/roles/${formData.value.id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) throw new Error('Lỗi khi cập nhật quyền hạn');
+    }
+    
+    closeForm();
+    await fetchRoles(); // Tải lại danh sách sau khi lưu thành công
+
+  } catch (error) {
+    console.error('Error:', error);
+    alert('Có lỗi xảy ra, vui lòng thử lại!');
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// 3. XỬ LÝ XÓA ROLE
+const confirmDelete = async () => {
+  isLoading.value = true;
+  try {
+    const response = await fetch(`${API_BASE_URL}/roles/${deleteConfirm.value.roleId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    
+    if (!response.ok) throw new Error('Lỗi khi xóa quyền hạn');
+    
+    roles.value = roles.value.filter(r => r.id !== deleteConfirm.value.roleId);
+    cancelDelete();
+    
+  } catch (error) {
+    console.error('Error:', error);
+    alert('Không thể xóa quyền hạn này!');
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+onMounted(() => {
+  fetchRoles();
+});
+
 const goBack = () => {
   window.history.back();
 };
 
 const openAddForm = () => {
   formModal.value.mode = 'add';
-  formData.value = {
-    id: 0,
-    name: '',
-    description: '',
-    color: '#3b82f6',
-  };
+  formData.value = { id: 0, name: '', description: '' };
   formModal.value.show = true;
 };
 
 const openEditForm = (role: Role) => {
   formModal.value.mode = 'edit';
-  formData.value = {
-    id: role.id,
-    name: role.name,
-    description: role.description,
-    color: role.color,
-  };
+  formData.value = { id: role.id, name: role.name, description: role.description };
   formModal.value.show = true;
 };
 
@@ -235,63 +282,20 @@ const closeForm = () => {
   formModal.value.show = false;
 };
 
-const submitForm = async () => {
-  isLoading.value = true;
-  try {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    if (formModal.value.mode === 'add') {
-      const newRole: Role = {
-        id: Math.max(...roles.value.map(r => r.id), 0) + 1,
-        name: formData.value.name,
-        description: formData.value.description,
-        color: formData.value.color,
-        userCount: 0,
-        createdAt: new Date().toISOString().split('T')[0],
-      };
-      roles.value.push(newRole);
-    } else {
-      const role = roles.value.find(r => r.id === formData.value.id);
-      if (role) {
-        role.name = formData.value.name;
-        role.description = formData.value.description;
-        role.color = formData.value.color;
-      }
-    }
-    closeForm();
-  } catch (error) {
-    console.error('Error:', error);
-  } finally {
-    isLoading.value = false;
-  }
-};
-
 const openDeleteConfirm = (role: Role) => {
-  deleteConfirm.value = {
-    show: true,
-    roleId: role.id,
-    roleName: role.name,
-  };
+  deleteConfirm.value = { show: true, roleId: role.id, roleName: role.name };
 };
 
 const cancelDelete = () => {
   deleteConfirm.value.show = false;
 };
 
-const confirmDelete = async () => {
-  isLoading.value = true;
-  try {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    roles.value = roles.value.filter(r => r.id !== deleteConfirm.value.roleId);
-    cancelDelete();
-  } catch (error) {
-    console.error('Error:', error);
-  } finally {
-    isLoading.value = false;
-  }
-};
-
 const formatDate = (date: string) => {
+  if (!date) return '';
   return new Date(date).toLocaleDateString('vi-VN');
 };
 </script>
+
+<style scoped>
+@import '../assets/css/role-management.css';
+</style>

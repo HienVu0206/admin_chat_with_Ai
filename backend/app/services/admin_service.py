@@ -229,10 +229,24 @@ class AdminManagementService:
         if not target_user:
             raise HTTPException(status_code=404, detail="Người dùng không tồn tại")
 
-        # Kiểm tra xem role mới có hợp lệ và CÒN HOẠT ĐỘNG không
+        # 1. Kiểm tra xem role mới có hợp lệ và CÒN HOẠT ĐỘNG không
         new_role = self.db.query(Roles).filter(Roles.id == new_role_id, Roles.is_active == True).first()
         if not new_role:
             raise HTTPException(status_code=400, detail="Quyền (Role) không tồn tại hoặc đã bị khóa")
+
+        # 2. CHẶN KHÔNG CHO CẤP QUYỀN ADMIN (Thêm đoạn này)
+        if new_role.name.lower() in ["admin", "super_admin"]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, 
+                detail="Bạn không có quyền cấp chức vụ Admin cho người dùng khác."
+            )
+
+        # 3. (Bảo mật bổ sung) Chặn Admin thay đổi quyền của một Admin khác để tránh phá hoại nội bộ
+        if target_user.role and target_user.role.name.lower() in ["admin", "super_admin"]:
+             raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, 
+                detail="Bạn không thể hạ quyền hoặc thay đổi chức vụ của một quản trị viên khác."
+            )
 
         old_role_name = target_user.role.name
         target_user.role_id = new_role_id

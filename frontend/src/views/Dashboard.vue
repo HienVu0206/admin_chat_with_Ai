@@ -16,6 +16,13 @@
           </div>
 
           <div class="header-actions">
+            <router-link to="/role-management" class="action-btn role-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+              </svg>
+              Quản lý Quyền
+            </router-link>
+
             <router-link to="/users" class="action-btn user-btn">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
@@ -185,12 +192,12 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
-import { useRouter } from 'vue-router'; // 1. Import Vue Router
+import { useRouter } from 'vue-router'; 
 
 // @ts-ignore
 const API_BASE_URL = import.meta.env?.VITE_API_URL || 'http://127.0.0.1:8000';
 
-const router = useRouter(); // 2. Khởi tạo router
+const router = useRouter(); 
 const loading = ref(true);
 const currentTime = ref('');
 
@@ -217,14 +224,9 @@ const goBack = () => {
   window.history.back();
 };
 
-// 3. Hàm xử lý Đăng xuất
 const handleLogout = () => {
-  // Hỏi xác nhận (tuỳ chọn)
   if (confirm("Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?")) {
-    // Xóa Token
     localStorage.removeItem('access_token');
-    
-    // Chuyển hướng về trang Login
     router.push('/login');
   }
 };
@@ -350,7 +352,19 @@ onMounted(() => {
   font-size: 14px;
   transition: all 0.2s ease;
   border: 1px solid transparent;
-  cursor: pointer; /* Thêm cursor pointer cho button */
+  cursor: pointer;
+}
+
+/* NÚT QUẢN LÝ QUYỀN VỪA THÊM (Màu cam) */
+.role-btn {
+  background-color: #ffedd5;
+  color: #ea580c;
+}
+
+.role-btn:hover {
+  background-color: #ea580c;
+  color: #ffffff;
+  box-shadow: 0 4px 6px -1px rgba(234, 88, 12, 0.2);
 }
 
 /* Nút Nhật ký hoạt động (Màu xanh dương) */

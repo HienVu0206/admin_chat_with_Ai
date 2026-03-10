@@ -5,6 +5,7 @@ import Dashboard from '../views/Dashboard.vue'
 // 1. BỔ SUNG IMPORT TRANG AUDIT LOGS
 import AuditLogs from '../views/audit-logs.vue' 
 import UserManager from '../views/user-manager.vue'
+import RoleManagement from '../views/role-management.vue'
 
 const routes = [
     { 
@@ -31,6 +32,11 @@ const routes = [
         path: '/users',
         name: 'UserManager',
         component: UserManager
+    },
+    {
+        path: '/role-management',
+        name: 'RoleManagement',
+        component: RoleManagement
     }
 ]
 
@@ -45,7 +51,7 @@ router.beforeEach((to, from, next) => {
     
     
     // Danh sách các trang cần phải đăng nhập mới được vào
-    const protectedRoutes = ['/dashboard', '/audit-logs', '/users']
+    const protectedRoutes = ['/dashboard', '/audit-logs', '/users', '/role-management']
     
     // Nếu vào trang cần bảo vệ mà không có token -> Đuổi về trang login
     if (protectedRoutes.includes(to.path) && !token) {
