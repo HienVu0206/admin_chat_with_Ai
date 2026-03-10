@@ -8,5 +8,9 @@ class RoleBase(BaseModel):
 class RoleResponse(RoleBase):
     id: int
 
+class RoleUpdateRequest(BaseModel):
+    name: str
+    description: Optional[str] = None
+    is_active: bool
     # Bật tính năng này để Pydantic tự động map dữ liệu từ SQLAlchemy Object sang JSON
     model_config = ConfigDict(from_attributes=True)

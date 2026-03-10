@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, text, Enum, Date
 from sqlalchemy.orm import relationship
 from app.core.database import Base
+from sqlalchemy import Column, Integer, String, Boolean
 
 # --- NHÓM 1: USER ---
 class Roles(Base):
@@ -8,6 +9,7 @@ class Roles(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(50), unique=True, nullable=False)
     description = Column(String(255))
+    is_active = Column(Boolean, default=True)
     users = relationship('Users', back_populates='role')
 
 class Users(Base):

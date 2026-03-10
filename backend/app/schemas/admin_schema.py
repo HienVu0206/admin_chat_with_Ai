@@ -49,3 +49,6 @@ class UserAdminResponse(BaseModel):
 class RoleCreateRequest(BaseModel):
     name: str
     description: Optional[str]
+
+class BanUserRequest(BaseModel):
+    reason: str
