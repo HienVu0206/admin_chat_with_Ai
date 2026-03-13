@@ -1,8 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router'
+
 // Dùng ../ để trỏ ra ngoài thư mục router, rồi vào thư mục views
 import Login from '../views/Login.vue' 
 import Dashboard from '../views/Dashboard.vue'
-// 1. BỔ SUNG IMPORT TRANG AUDIT LOGS
 import AuditLogs from '../views/audit-logs.vue' 
 import UserManager from '../views/user-manager.vue'
 import RoleManagement from '../views/role-management.vue'
@@ -22,7 +22,6 @@ const routes = [
         name: 'Dashboard', 
         component: Dashboard 
     },
-    // 2. BỔ SUNG KHAI BÁO ĐƯỜNG DẪN CHO AUDIT LOGS
     { 
         path: '/audit-logs', 
         name: 'AuditLogs', 
@@ -45,27 +44,22 @@ const router = createRouter({
     routes
 })
 
-// Navigation Guard (Giữ lại logic bảo vệ route và mở rộng thêm)
+// --- Navigation Guard (Đã được tối ưu) ---
 router.beforeEach((to, from, next) => {
-    const token = localStorage.getItem('access_token')
+    const token = localStorage.getItem('access_token');
     
-    
-    // Danh sách các trang cần phải đăng nhập mới được vào
-    const protectedRoutes = ['/dashboard', '/audit-logs', '/users', '/role-management']
-    
-    // Nếu vào trang cần bảo vệ mà không có token -> Đuổi về trang login
-    if (protectedRoutes.includes(to.path) && !token) {
-        next('/login')
+    // Nếu KHÔNG có token và đang cố vào một trang KHÁC trang login -> Đuổi về login
+    if (!token && to.path !== '/login') {
+        next('/login');
     } 
-    // Nếu đã đăng nhập rồi mà cố tình vào lại trang login -> Đẩy vào dashboard
-    else if (to.path === '/login' && token) {
-        next('/dashboard')
+    // Nếu ĐÃ CÓ token (đã đăng nhập) mà lại mò ra trang login -> Đẩy vào dashboard
+    else if (token && to.path === '/login') {
+        next('/dashboard');
     } 
-    // Các trường hợp hợp lệ khác cho qua bình thường
+    // Các trường hợp hợp lệ khác -> Cho phép đi tiếp bình thường
     else {
-        next()
+        next();
     }
 })
 
-// --- QUAN TRỌNG NHẤT LÀ DÒNG NÀY ---
 export default router

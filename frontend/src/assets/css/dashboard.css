@@ -1,10 +1,14 @@
 /* --- CONTAINER --- */
 .dashboard-container {
   min-height: 100vh;
+  width: 100%; /* Ép rộng tối đa */
+  max-width: 100%;
+  box-sizing: border-box; /* Fix lỗi padding làm tràn màn hình */
   background: #f8fafc;
   padding: 1.5rem;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   color: #1e293b;
+  overflow-x: hidden; /* Chặn cuộn ngang vĩnh viễn */
 }
 
 /* --- HEADER --- */
@@ -15,12 +19,23 @@
   margin-bottom: 2rem;
   flex-wrap: wrap;
   gap: 1rem;
+  width: 100%;
 }
 
 .header-content {
   display: flex;
   align-items: center;
   gap: 1.5rem;
+  width: 100%;
+}
+
+.header-title-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  width: 100%;
+  flex: 1;
 }
 
 .back-btn {
@@ -36,6 +51,7 @@
   font-weight: 600;
   font-size: 0.9rem;
   transition: all 0.2s;
+  white-space: nowrap;
 }
 
 .back-btn:hover { background: #f1f5f9; }
@@ -48,60 +64,86 @@
   margin: 0;
 }
 
-.header-subtitle {
-  font-size: 0.875rem;
-  color: #64748b;
-  margin: 0;
+.header-subtitle { font-size: 0.875rem; color: #64748b; margin: 0; }
+.header-time { font-size: 0.9rem; color: #64748b; font-weight: 500; }
+
+/* --- MENU ACTIONS --- */
+.header-actions-wrapper { position: relative; }
+
+.mobile-menu-btn {
+  display: none;
+  background: white;
+  border: 1px solid #e5e7eb;
+  color: #374151;
+  border-radius: 8px;
+  padding: 8px;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  transition: background 0.2s;
 }
 
-.header-time {
-  font-size: 0.9rem;
-  color: #64748b;
-  font-weight: 500;
+.mobile-menu-btn:hover { background: #f3f4f6; }
+
+.header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
 }
 
-/* --- STATS GRID (4 cards) --- */
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.role-btn { background-color: #ffedd5; color: #ea580c; }
+.role-btn:hover { background-color: #ea580c; color: #ffffff; box-shadow: 0 4px 6px -1px rgba(234, 88, 12, 0.2); }
+
+.audit-btn { background-color: #e0e7ff; color: #4f46e5; }
+.audit-btn:hover { background-color: #4f46e5; color: #ffffff; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2); }
+
+.user-btn { background-color: #dcfce7; color: #16a34a; }
+.user-btn:hover { background-color: #16a34a; color: #ffffff; box-shadow: 0 4px 6px -1px rgba(22, 163, 74, 0.2); }
+
+.logout-btn { background-color: #fee2e2; color: #dc2626; }
+.logout-btn:hover { background-color: #dc2626; color: #ffffff; box-shadow: 0 4px 6px -1px rgba(220, 38, 38, 0.2); }
+
+/* --- STATS GRID --- */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr); 
   gap: 1.5rem;
   margin-bottom: 2rem;
+  width: 100%;
 }
 
-/* --- STAT CARD --- */
 .stat-card {
   background: white;
   border-radius: 1rem;
   padding: 1.5rem;
+  box-sizing: border-box;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
   border: 1px solid #f1f5f9;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   transition: transform 0.2s;
+  width: 100%;
 }
 
-.stat-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-}
-
-.stat-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: 1rem;
-}
-
-.stat-icon-wrapper {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
+.stat-card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+.stat-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 1rem; }
+.stat-icon-wrapper { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
 .stat-icon-wrapper svg { width: 24px; height: 24px; }
 
 /* Icon Colors */
@@ -110,42 +152,28 @@
 .chats-icon { background: #f3e8ff; color: #9333ea; }
 .messages-icon { background: #ffedd5; color: #ea580c; }
 
-.stat-change {
-  font-size: 0.8rem;
-  font-weight: 700;
-  padding: 4px 8px;
-  border-radius: 6px;
-}
-
+.stat-change { font-size: 0.8rem; font-weight: 700; padding: 4px 8px; border-radius: 6px; }
 .stat-change.positive { background: #dcfce7; color: #166534; }
 .stat-change.neutral { background: #f1f5f9; color: #64748b; }
-
-.stat-value {
-  font-size: 1.75rem;
-  font-weight: 800;
-  color: #0f172a;
-  line-height: 1.2;
-}
-
-.stat-label {
-  font-size: 0.875rem;
-  color: #64748b;
-  margin-top: 4px;
-}
+.stat-value { font-size: 1.75rem; font-weight: 800; color: #0f172a; line-height: 1.2; }
+.stat-label { font-size: 0.875rem; color: #64748b; margin-top: 4px; }
 
 /* --- CHARTS SECTION --- */
 .charts-section {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1.5rem;
+  width: 100%;
 }
 
 .chart-card {
   background: white;
   border-radius: 1rem;
   padding: 1.5rem;
+  box-sizing: border-box;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
   border: 1px solid #f1f5f9;
+  width: 100%;
 }
 
 .chart-header { margin-bottom: 1.5rem; }
@@ -153,142 +181,45 @@
 .chart-subtitle { font-size: 0.85rem; color: #64748b; margin-top: 4px; }
 
 /* --- COLUMN CHART & TOOLTIPS --- */
-.chart-container {
-    height: 200px;
-    display: flex;
-    align-items: flex-end;
-}
-
-.chart-bars {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    width: 100%;
-    height: 100%;
-    gap: 10px;
-}
-
-.chart-column {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    height: 100%;
-    justify-content: flex-end;
-}
-
-.chart-bar {
-    width: 100%;
-    max-width: 40px;
-    background-color: #e2e8f0;
-    border-radius: 6px 6px 0 0;
-    transition: height 0.5s ease, background-color 0.2s;
-    position: relative; /* Quan trọng cho tooltip */
-    cursor: pointer;
-}
-
+.chart-container { height: 200px; display: flex; align-items: flex-end; }
+.chart-bars { display: flex; justify-content: space-between; align-items: flex-end; width: 100%; height: 100%; gap: 10px; }
+.chart-column { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; height: 100%; justify-content: flex-end; }
+.chart-bar { width: 100%; max-width: 40px; background-color: #e2e8f0; border-radius: 6px 6px 0 0; transition: height 0.5s ease, background-color 0.2s; position: relative; cursor: pointer; }
 .chart-bar:hover { background-color: #3b82f6; }
 .chart-bar.active { background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%); }
+.chart-label { font-size: 0.75rem; color: #94a3b8; font-weight: 600; }
 
-.chart-label {
-    font-size: 0.75rem;
-    color: #94a3b8;
-    font-weight: 600;
-}
-
-/* CSS Tooltip Logic */
 .chart-bar:hover::after {
-    content: attr(data-value);
-    position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%) translateY(-8px);
-    background-color: #1e293b;
-    color: #fff;
-    padding: 6px 10px;
-    border-radius: 6px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    white-space: nowrap;
-    z-index: 10;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    pointer-events: none;
-    animation: fadeIn 0.2s ease-out;
+  content: attr(data-value); position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%) translateY(-8px);
+  background-color: #1e293b; color: #fff; padding: 6px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 700;
+  white-space: nowrap; z-index: 10; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); pointer-events: none; animation: fadeIn 0.2s ease-out;
 }
-
 .chart-bar:hover::before {
-    content: '';
-    position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    border-width: 6px;
-    border-style: solid;
-    border-color: #1e293b transparent transparent transparent;
-    margin-bottom: -4px;
-    z-index: 10;
-    animation: fadeIn 0.2s ease-out;
+  content: ''; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+  border-width: 6px; border-style: solid; border-color: #1e293b transparent transparent transparent; margin-bottom: -4px;
+  z-index: 10; animation: fadeIn 0.2s ease-out;
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateX(-50%) translateY(0); }
-    to { opacity: 1; transform: translateX(-50%) translateY(-8px); }
+  from { opacity: 0; transform: translateX(-50%) translateY(0); }
+  to { opacity: 1; transform: translateX(-50%) translateY(-8px); }
+}
+
+@keyframes fadeInMenu {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* --- MESSAGE DISTRIBUTION --- */
-.message-distribution {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-    margin-top: 1rem;
-}
-
-.message-row {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.msg-info {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: #334155;
-}
-
-.progress-bg {
-    width: 100%;
-    height: 10px;
-    background: #f1f5f9;
-    border-radius: 10px;
-    overflow: hidden;
-}
-
-.progress-fill {
-    height: 100%;
-    border-radius: 10px;
-}
-
+.message-distribution { display: flex; flex-direction: column; gap: 1.5rem; margin-top: 1rem; }
+.message-row { display: flex; flex-direction: column; gap: 0.5rem; }
+.msg-info { display: flex; justify-content: space-between; font-size: 0.9rem; font-weight: 600; color: #334155; }
+.progress-bg { width: 100%; height: 10px; background: #f1f5f9; border-radius: 10px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 10px; }
 .user-fill { background: #3b82f6; }
 .ai-fill { background: #8b5cf6; }
-
-.msg-percent {
-    font-size: 0.8rem;
-    color: #64748b;
-    text-align: right;
-}
-
-.message-total-footer {
-    margin-top: 2rem;
-    padding-top: 1rem;
-    border-top: 1px solid #f1f5f9;
-    text-align: center;
-    font-size: 0.9rem;
-    color: #64748b;
-}
-
+.msg-percent { font-size: 0.8rem; color: #64748b; text-align: right; }
+.message-total-footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #f1f5f9; text-align: center; font-size: 0.9rem; color: #64748b; }
 .message-total-footer strong { color: #0f172a; }
 
 /* --- RESPONSIVE --- */
@@ -297,11 +228,60 @@
   .charts-section { grid-template-columns: 1fr; }
 }
 
-/* Mobile iPhone 14 PM */
+/* --- RESPONSIVE MOBILE (iPhone 14 PM / Chiều rộng <= 600px) --- */
 @media (max-width: 600px) {
-    .dashboard-container { padding: 1rem; }
-    .stats-grid { grid-template-columns: 1fr; gap: 1rem; }
-    .dashboard-header { flex-direction: column; align-items: flex-start; }
-    .stat-card { padding: 1.25rem; }
-    .stat-value { font-size: 1.5rem; }
+  .dashboard-container { padding: 1rem; }
+  
+  .header-content { flex-direction: column; align-items: flex-start; gap: 1rem; }
+  
+  .header-title-wrapper {
+    display: flex;
+    flex-direction: row; /* Ép Tiêu đề và nút Menu nằm cùng 1 hàng */
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .header-title h1 { font-size: 1.3rem; }
+  
+  /* Bật nút Menu mobile */
+  .mobile-menu-btn { display: block; }
+  
+  /* Đổi Menu ngang thành Dropdown Popup */
+  .header-actions {
+    display: none;
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    background: white;
+    flex-direction: column;
+    min-width: 200px;
+    padding: 8px;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+    border: 1px solid #f3f4f6;
+    z-index: 999; /* Đẩy lớp này lên cao nhất để không bị thẻ Chart đè */
+    gap: 6px;
+  }
+
+  .header-actions.is-open {
+    display: flex;
+    animation: fadeInMenu 0.2s ease-in-out;
+  }
+
+  .action-btn { width: 100%; justify-content: flex-start; padding: 10px 14px; box-sizing: border-box; }
+
+  /* Ép 4 khối tổng quan thành lưới 2x2 trên mobile cho gọn */
+  .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+  
+  .stat-card { padding: 1.25rem; }
+  .stat-value { font-size: 1.5rem; }
+  .stat-icon-wrapper { width: 40px; height: 40px; }
+  .stat-icon-wrapper svg { width: 20px; height: 20px; }
+  
+  .charts-section { display: flex; flex-direction: column; gap: 1.5rem; }
+}
+
+/* Breakpoint phụ cho máy siêu nhỏ gọn */
+@media (max-width: 380px) {
+  .stats-grid { grid-template-columns: 1fr; }
 }

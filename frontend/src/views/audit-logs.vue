@@ -1,72 +1,76 @@
 <template>
   <div class="audit-logs-container">
     <div class="page-header">
-      <div class="header-content">
-        <button class="back-btn" @click="goBack">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+      <div class="header-left">
+        <button class="btn-back" @click="goBack">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
             <path d="M19 12H5M12 19l-7-7 7-7"/>
           </svg>
-          Quay lại
+          <span class="back-text">Quay lại</span>
         </button>
-        <div class="header-title">
-          <h1>Nhật ký hoạt động</h1>
-          <p class="header-subtitle">Theo dõi các thao tác của quản trị viên</p>
+        <div class="title-group">
+          <h1 class="page-title">Nhật ký hoạt động</h1>
+          <p class="page-subtitle">Theo dõi các thao tác của quản trị viên hệ thống</p>
         </div>
       </div>
     </div>
 
-    <div v-if="isLoading" class="status-message">Đang tải dữ liệu...</div>
-    <div v-else-if="error" class="status-message error-message">{{ error }}</div>
-
-    <div v-else class="table-wrapper">
-      <table class="audit-table">
-        <thead>
-          <tr>
-            <th>Thời gian</th>
-            <th>Quản trị viên</th>
-            <th>Hành động</th>
-            <th>Đối tượng</th>
-            <th>Chi tiết</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-if="currentPageLogs.length === 0">
-            <td colspan="5" style="text-align: center; padding: 20px;">Không có nhật ký hoạt động nào.</td>
-          </tr>
-          
-          <tr v-for="log in currentPageLogs" :key="log.id" class="log-row">
-            <td class="timestamp">{{ formatDateTime(log.created_at) }}</td>
-            <td class="admin-name">{{ log.admin_name }}</td>
-            <td class="action-cell">
-              <span :class="['badge', `action-${log.action}`]">
-                {{ getActionLabel(log.action) }}
-              </span>
-            </td>
-            <td class="target-id">{{ log.target_id || 'N/A' }}</td>
-            <td class="details">{{ log.details || 'Không có chi tiết' }}</td>
-          </tr>
-        </tbody>
-      </table>
+    <div v-if="isLoading" class="state-card loading">
+      <div class="spinner"></div>
+      <p>Đang tải dữ liệu hệ thống...</p>
+    </div>
+    
+    <div v-else-if="error" class="state-card error">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+      <p>{{ error }}</p>
     </div>
 
-    <div class="pagination" v-if="totalPages > 1">
-      <button 
-        :disabled="currentPage === 1" 
-        @click="currentPage--"
-        class="pagination-btn"
-      >
+    <div v-else class="content-card">
+      <div class="table-responsive">
+        <table class="audit-table">
+          <thead>
+            <tr>
+              <th width="15%">THỜI GIAN</th>
+              <th width="20%">QUẢN TRỊ VIÊN</th>
+              <th width="20%">HÀNH ĐỘNG</th>
+              <th width="15%">ĐỐI TƯỢNG</th>
+              <th width="30%">CHI TIẾT</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="currentPageLogs.length === 0">
+              <td colspan="5" class="empty-state">Không có lịch sử hoạt động nào được ghi nhận.</td>
+            </tr>
+            
+            <tr v-for="log in currentPageLogs" :key="log.id">
+              <td class="cell-time">{{ formatDateTime(log.created_at) }}</td>
+              <td class="cell-admin">
+                <div class="admin-badge">
+                  <div class="admin-avatar">{{ log.admin_name.charAt(0).toUpperCase() }}</div>
+                  <span>{{ log.admin_name }}</span>
+                </div>
+              </td>
+              <td class="cell-action">
+                <span :class="['status-pill', `action-${log.action}`]">
+                  {{ getActionLabel(log.action) }}
+                </span>
+              </td>
+              <td class="cell-target">{{ log.target_id ? `#${log.target_id}` : '--' }}</td>
+              <td class="cell-details">{{ log.details || 'Không có mô tả chi tiết' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="pagination-wrapper" v-if="totalPages > 1">
+      <button class="btn-page" :disabled="currentPage === 1" @click="currentPage--">
         ← Trang trước
       </button>
-      
-      <div class="page-info">
-        Trang {{ currentPage }} / {{ totalPages }}
+      <div class="page-indicator">
+        Trang <strong>{{ currentPage }}</strong> / {{ totalPages }}
       </div>
-      
-      <button 
-        :disabled="currentPage === totalPages" 
-        @click="currentPage++"
-        class="pagination-btn"
-      >
+      <button class="btn-page" :disabled="currentPage === totalPages" @click="currentPage++">
         Trang sau →
       </button>
     </div>
@@ -76,7 +80,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 
-// 1. Cập nhật Interface khớp với Backend Schema (AuditLogResponse)
 interface AuditLog {
   id: number;
   admin_name: string;
@@ -86,15 +89,12 @@ interface AuditLog {
   created_at: string;
 }
 
-// 2. State quản lý UI và dữ liệu
 const logs = ref<AuditLog[]>([]);
 const isLoading = ref(false);
 const error = ref('');
-
 const currentPage = ref(1);
-const itemsPerPage = 10; // FE tự phân trang từ mảng trả về
+const itemsPerPage = 10; 
 
-// 3. Hàm gọi API
 const fetchAuditLogs = async () => {
   isLoading.value = true;
   error.value = '';
@@ -110,38 +110,28 @@ const fetchAuditLogs = async () => {
       }
     });
 
-   if (response.status === 401 || response.status === 403) {
-      // BỔ SUNG 2 DÒNG NÀY
+    if (response.status === 401 || response.status === 403) {
       localStorage.removeItem('access_token');
       window.location.href = '/login';
-      
-      throw new Error('Bạn không có quyền truy cập hoặc phiên đăng nhập đã hết hạn.');
+      throw new Error('Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.');
     }
 
-    if (!response.ok) {
-      throw new Error('Lỗi khi tải dữ liệu từ máy chủ.');
-    }
+    if (!response.ok) throw new Error('Không thể tải dữ liệu từ máy chủ.');
 
     const data = await response.json();
-    logs.value = data; // Gán dữ liệu thật vào state
-    
+    logs.value = data; 
   } catch (err: any) {
-    error.value = err.message || 'Đã xảy ra lỗi không xác định.';
-    console.error('Fetch Logs Error:', err);
+    error.value = err.message || 'Lỗi kết nối máy chủ.';
   } finally {
     isLoading.value = false;
   }
 };
 
-// Gọi hàm fetch ngay khi component được render
 onMounted(() => {
   fetchAuditLogs();
 });
 
-// 4. Các Computed & Methods (Đã sửa lại key cho khớp dữ liệu thật)
-const totalPages = computed(() => {
-  return Math.ceil(logs.value.length / itemsPerPage) || 1;
-});
+const totalPages = computed(() => Math.ceil(logs.value.length / itemsPerPage) || 1);
 
 const currentPageLogs = computed(() => {
   const startIndex = (currentPage.value - 1) * itemsPerPage;
@@ -151,43 +141,22 @@ const currentPageLogs = computed(() => {
 const formatDateTime = (dateStr: string) => {
   if (!dateStr) return '';
   const date = new Date(dateStr);
-  return date.toLocaleDateString('vi-VN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
+  return date.toLocaleString('vi-VN', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit'
   });
 };
 
 const getActionLabel = (action: string) => {
   const labels: Record<string, string> = {
-    'CHANGE_ROLE': 'Đổi quyền',
-    'BAN_USER': 'Cấm người dùng',
-    'UNBAN_USER': 'Gỡ cấm',
-    'DELETE_POST': 'Xóa bài viết',
-    'RESOLVE_REPORT': 'Giải quyết báo cáo',
-    'DELETE_COMMENT': 'Xóa bình luận',
+    'CHANGE_ROLE': 'Đổi quyền', 'BAN_USER': 'Cấm người dùng',
+    'UNBAN_USER': 'Gỡ cấm', 'DELETE_POST': 'Xóa bài viết',
+    'RESOLVE_REPORT': 'Giải quyết báo cáo', 'DELETE_COMMENT': 'Xóa bình luận',
   };
   return labels[action] || action;
 };
 
-const goBack = () => {
-  window.history.back();
-};
+const goBack = () => window.history.back();
 </script>
 
 <style scoped src="../assets/css/audit-logs.css"></style>
-
-<style scoped>
-.status-message {
-  text-align: center;
-  padding: 40px;
-  font-size: 16px;
-  color: #666;
-}
-.error-message {
-  color: #dc3545;
-}
-</style>

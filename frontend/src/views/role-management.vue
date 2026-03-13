@@ -34,23 +34,17 @@
       <table class="roles-table">
         <thead>
           <tr>
-            <!-- <th>ID</th> -->
             <th>Tên quyền hạn</th>
             <th>Mô tả</th>
-            <!-- <th>Số người dùng</th>
-            <th>Ngày tạo</th> -->
             <th>Hành động</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="role in filteredRoles" :key="role.id" class="role-row">
-            <!-- <td class="role-id">{{ role.id }}</td> -->
             <td class="role-name">
               <div class="role-badge" :style="{ backgroundColor: role.color }">{{ role.name }}</div>
             </td>
             <td class="role-description">{{ role.description }}</td>
-            <!-- <td class="role-users">{{ role.userCount }}</td>
-            <td class="role-date">{{ formatDate(role.createdAt) }}</td> -->
             <td class="actions-cell">
               <div class="action-buttons">
                 <button class="btn-action btn-edit" @click="openEditForm(role)" title="Chỉnh sửa">
@@ -169,7 +163,6 @@ const getAuthHeaders = () => {
   };
 };
 
-// 1. LẤY DANH SÁCH ROLE: ĐỒNG BỘ DỮ LIỆU TỪ DB SANG FRONTEND
 const fetchRoles = async () => {
   try {
     isLoading.value = true;
@@ -181,14 +174,13 @@ const fetchRoles = async () => {
     if (!response.ok) throw new Error('Không thể tải danh sách quyền hạn');
     const data = await response.json();
     
-    // Ánh xạ dữ liệu để tránh lỗi giao diện
     roles.value = data.map((item: any, index: number) => ({
       id: item.id,
       name: item.name || 'Không có tên',
       description: item.description || '',
-      color: colors[index % colors.length], // Gán màu ngẫu nhiên cho đẹp giao diện
-      userCount: 0, // Mock data
-      createdAt: new Date().toISOString() // Mock data
+      color: colors[index % colors.length], 
+      userCount: 0, 
+      createdAt: new Date().toISOString() 
     }));
     
   } catch (error) {
@@ -198,15 +190,12 @@ const fetchRoles = async () => {
   }
 };
 
-// 2. XỬ LÝ FORM THÊM/SỬA: CHỈ GỬI NAME VÀ DESCRIPTION
 const submitForm = async () => {
   isLoading.value = true;
   try {
-    // Chỉ gửi các trường có trong Database của bạn
     const payload = {
       name: formData.value.name,
       description: formData.value.description,
-      // Có thể thêm: is_active: 1 nếu API yêu cầu
     };
 
     if (formModal.value.mode === 'add') {
@@ -226,7 +215,7 @@ const submitForm = async () => {
     }
     
     closeForm();
-    await fetchRoles(); // Tải lại danh sách sau khi lưu thành công
+    await fetchRoles(); 
 
   } catch (error) {
     console.error('Error:', error);
@@ -236,7 +225,6 @@ const submitForm = async () => {
   }
 };
 
-// 3. XỬ LÝ XÓA ROLE
 const confirmDelete = async () => {
   isLoading.value = true;
   try {
@@ -296,6 +284,4 @@ const formatDate = (date: string) => {
 };
 </script>
 
-<style scoped>
-@import '../assets/css/role-management.css';
-</style>
+<style scoped src="../assets/css/role-management.css"></style>

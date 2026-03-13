@@ -75,7 +75,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import axios from 'axios' // Cần import axios để gọi API
+import axios from 'axios'
 
 const router = useRouter()
 const email = ref('')
@@ -103,24 +103,30 @@ const handleLogin = async () => {
       }
     });
 
-    // Nếu thành công -> lưu token vào localStorage
+    // --- LƯU CHUẨN CHỈ CẢ ACCESS VÀ REFRESH TOKEN ---
     localStorage.setItem('access_token', response.data.access_token);
+    localStorage.setItem('refresh_token', response.data.refresh_token);
+    
+    // (Tùy chọn) Lưu role
+    if (response.data.role) {
+      localStorage.setItem('user_role', response.data.role);
+    }
+    
     console.log("Đăng nhập thành công!");
     
-    // Điều hướng ngay lập tức sang trang Dashboard
+    // Điều hướng sang trang Dashboard
     router.push('/dashboard');
 
   } catch (error) {
     console.error("Lỗi đăng nhập:", error);
     
-    // Xử lý hiển thị thông báo lỗi tùy theo phản hồi từ Server
+    // Xử lý hiển thị thông báo lỗi
     if (error.response && error.response.data && error.response.data.detail) {
-      errorMessage.value = error.response.data.detail; // Hiện lỗi 401: Sai mật khẩu/tài khoản
+      errorMessage.value = error.response.data.detail; 
     } else {
       errorMessage.value = 'Đăng nhập thất bại. Vui lòng kiểm tra lại kết nối mạng.';
     }
   } finally {
-    // Tắt loading sau khi hoàn tất (dù thành công hay lỗi)
     isLoading.value = false;
   }
 };

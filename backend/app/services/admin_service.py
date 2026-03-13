@@ -72,27 +72,44 @@ class AdminManagementService:
 
     def list_roles(self) -> List[RoleResponse]:
         """Lấy toàn bộ danh sách chức vụ ĐANG HOẠT ĐỘNG (chưa bị xóa)"""
-        # Thêm điều kiện is_active == True để loại bỏ các role đã xóa mềm
+        # Hàm này chỉ để xem danh sách nên Moderator hay Admin đều xem được, không cần chặn
         return self.db.query(Roles).filter(Roles.is_active == True).all()
 
-    def add_new_role(self, data: RoleCreateRequest, admin_id: int):
+    def add_new_role(self, data: RoleCreateRequest, current_admin: Users):
         """Thêm chức vụ mới vào bảng Roles"""
+        # --- CHẶN MODERATOR ---
+        if current_admin.role.name.lower() == "moderator":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, 
+                detail="Moderator không có quyền thêm chức vụ mới!"
+            )
+        # ----------------------
+
         new_role = Roles(name=data.name, description=data.description)
         self.db.add(new_role)
         self.db.commit()
         self.db.refresh(new_role)
 
-        self.log_action(admin_id, "CREATE_ROLE", new_role.id, f"Tạo role mới: {new_role.name}")
+        # Chú ý: Đổi admin_id thành current_admin.id ở dòng ghi log
+        self.log_action(current_admin.id, "CREATE_ROLE", new_role.id, f"Tạo role mới: {new_role.name}")
         return new_role
 
-    def update_role(self, role_id: int, data: RoleUpdateRequest, admin_id: int):
+    def update_role(self, role_id: int, data: RoleUpdateRequest, current_admin: Users):
         """Cập nhật thông tin chức vụ"""
-        # 1. Tìm role cần sửa (chỉ sửa những role chưa bị xóa)
+        # --- CHẶN MODERATOR ---
+        if current_admin.role.name.lower() == "moderator":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, 
+                detail="Moderator không có quyền sửa đổi chức vụ!"
+            )
+        # ----------------------
+
+        # 1. Tìm role cần sửa
         role = self.db.query(Roles).filter(Roles.id == role_id, Roles.is_active == True).first()
         if not role:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy chức vụ này hoặc đã bị xóa")
         
-        # 2. Kiểm tra xem tên mới có bị trùng với role khác không
+        # 2. Kiểm tra xem tên mới có bị trùng không
         if data.name != role.name:
             existing_role = self.db.query(Roles).filter(Roles.name == data.name).first()
             if existing_role:
@@ -106,38 +123,44 @@ class AdminManagementService:
         self.db.commit()
         self.db.refresh(role)
         
-        # 4. Ghi log
-        self.log_action(admin_id, "UPDATE_ROLE", role.id, f"Cập nhật role từ '{old_name}' thành '{role.name}'")
+        # 4. Ghi log (Đổi admin_id thành current_admin.id)
+        self.log_action(current_admin.id, "UPDATE_ROLE", role.id, f"Cập nhật role từ '{old_name}' thành '{role.name}'")
         return role
 
-    def delete_role(self, role_id: int, admin_id: int):
+    def delete_role(self, role_id: int, current_admin: Users):
         """XÓA MỀM (Soft Delete) chức vụ"""
+        # --- CHẶN MODERATOR ---
+        if current_admin.role.name.lower() == "moderator":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, 
+                detail="Moderator không có quyền xóa chức vụ!"
+            )
+        # ----------------------
+
         # 1. Tìm role cần xóa
         role = self.db.query(Roles).filter(Roles.id == role_id).first()
         if not role:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy chức vụ này")
         
-        # Kiểm tra xem role này đã bị xóa trước đó chưa
         if not role.is_active:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Chức vụ này đã bị xóa từ trước rồi")
         
-        # 2. Ràng buộc quan trọng: Không cho xóa nếu đang có User giữ Role này
+        # 2. Ràng buộc: Không cho xóa nếu đang có User giữ Role này
         if self.db.query(Users).filter(Users.role_id == role_id).count() > 0:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, 
                 detail="Không thể xóa Role đang có người sử dụng. Hãy chuyển họ sang Role khác trước."
             )
             
-        # 3. Tiến hành XÓA MỀM thay vì hard delete
+        # 3. XÓA MỀM
         role_name = role.name
-        role.is_active = False # Chỉ cập nhật trạng thái
+        role.is_active = False 
         
         self.db.commit()
         
-        # 4. Ghi log
-        self.log_action(admin_id, "SOFT_DELETE_ROLE", role_id, f"Đã xóa mềm role: {role_name}")
+        # 4. Ghi log (Đổi admin_id thành current_admin.id)
+        self.log_action(current_admin.id, "SOFT_DELETE_ROLE", role_id, f"Đã xóa mềm role: {role_name}")
         return {"status": "success", "message": f"Đã xóa chức vụ {role_name} thành công"}
-
 
     # --- QUẢN LÝ NGƯỜI DÙNG & PHÂN QUYỀN ---
 
@@ -169,32 +192,57 @@ class AdminManagementService:
             ) for u in users
         ]
 
-    def ban_user(self, user_id: int, reason: str, admin_id: int):
+    def ban_user(self, user_id: int, reason: str, current_admin: Users):
+        """Khóa tài khoản người dùng với các điều kiện phân quyền nghiêm ngặt"""
+        
+        # 1. Tìm user cần bị khóa
         user = self.db.query(Users).filter(Users.id == user_id).first()
         if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        
+            raise HTTPException(status_code=404, detail="Không tìm thấy người dùng")
+
+        # 2. BẢO VỆ TỐI THƯỢNG: Không ai được phép khóa tài khoản admin gốc
+        if user.email == "admin@gmail.com":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, 
+                detail="Không thể khóa tài khoản Quản trị viên gốc!"
+            )
+
+        # 3. LUẬT CHO MODERATOR: Chỉ được khóa người dùng thường (Role: user)
+        if current_admin.role.name.lower() == "moderator":
+            if user.role.name.lower() != "user":
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN, 
+                    detail="Moderator chỉ được phép khóa tài khoản của người dùng bình thường (Role: User)!"
+                )
+
+        # 4. Kiểm tra xem user đã bị khóa sẵn chưa (tránh ghi log thừa)
+        if user.status == 'banned':
+            raise HTTPException(status_code=400, detail="Người dùng này đã bị khóa từ trước rồi.")
+
+        # 5. Tiến hành khóa tài khoản
         user.status = 'banned'
 
-        # Ghi vào bảng BanLogs
+        # 6. Ghi log vào bảng BanLogs
         new_ban_log = BanLogs( 
             user_id=user_id,
-            banned_by=admin_id,
+            banned_by=current_admin.id,  # Lấy ID từ object current_admin
             reason=reason
         )
         self.db.add(new_ban_log)
 
-        # Ghi vào bảng AdminActionLogs
+        # 7. Ghi log vào bảng AdminActionLogs
         new_action_log = AdminActionLogs(
-            admin_id=admin_id,
+            admin_id=current_admin.id,
             action="BAN_USER",
             target_id=user_id,
-            details=f"Banned user: {user.email}. Reason: {reason}"
+            details=f"Đã khóa tài khoản: {user.email}. Lý do: {reason}"
         )
         self.db.add(new_action_log)
 
+        # 8. Lưu thay đổi vào DB
         self.db.commit()
-        return {"message": "User has been banned successfully"}
+        
+        return {"message": f"Đã khóa tài khoản {user.email} thành công"}
 
     def unban_user(self, user_id: int, admin_id: int):
         # 1. Tìm user cần unban
@@ -225,9 +273,20 @@ class AdminManagementService:
 
     def change_user_role(self, target_user_id: int, new_role_id: int, current_admin: Users):
         """Thay đổi chức vụ người dùng và ghi log"""
+        if current_admin.role.name.lower() == "moderator":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, 
+                detail="Moderator không có quyền thay đổi chức vụ của bất kỳ ai!"
+            )
         target_user = self.db.query(Users).filter(Users.id == target_user_id).first()
         if not target_user:
             raise HTTPException(status_code=404, detail="Người dùng không tồn tại")
+
+        if target_user.email == "admin@gmail.com":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, 
+                detail="Không thể thay đổi chức vụ của tài khoản Quản trị viên gốc!"
+            )
 
         # 1. Kiểm tra xem role mới có hợp lệ và CÒN HOẠT ĐỘNG không
         new_role = self.db.query(Roles).filter(Roles.id == new_role_id, Roles.is_active == True).first()

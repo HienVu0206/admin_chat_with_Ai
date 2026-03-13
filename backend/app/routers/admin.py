@@ -2,10 +2,10 @@ from fastapi import APIRouter, Depends, Body, Query
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from typing import List
+from pydantic import BaseModel # <-- THÊM IMPORT NÀY
 
 from app.core.database import get_db
 from app.core.security import get_current_admin, verify_refresh_token
-from app.models.models import Users
 from app.models.models import Users, BanLogs, AdminActionLogs
 from app.services.admin_service import AdminService, AdminManagementService
 from app.services.role_service import RoleService
@@ -16,6 +16,10 @@ from app.schemas.admin_schema import (
 from app.schemas.role import RoleResponse, RoleUpdateRequest
 
 router = APIRouter(prefix="/admin", tags=["Admin Management"])
+
+# --- Schema cho Refresh Token (Mày có thể vứt cái này sang file admin_schema.py cho gọn cũng được) ---
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
 
 # --- Dependencies ---
 def get_admin_service(db: Session = Depends(get_db)):
@@ -33,6 +37,36 @@ def get_role_service(db: Session = Depends(get_db)):
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), service: AdminService = Depends(get_admin_service)):
     return service.login_admin(form_data.username, form_data.password)
 
+# ==========================================
+# API CẤP LẠI TOKEN (VỪA THÊM VÀO ĐÂY)
+# ==========================================
+@router.post("/refresh", response_model=TokenResponse)
+def refresh_access_token(
+    request_data: RefreshTokenRequest,
+    db: Session = Depends(get_db),
+    service: AdminService = Depends(get_admin_service)
+):
+    """API Cấp lại Access Token mới khi thẻ cũ bị hết hạn (Lỗi 401)"""
+    
+    # 1. Kiểm tra refresh token có hợp lệ không bằng hàm mày đã viết
+    user = verify_refresh_token(request_data.refresh_token, db)
+    
+    # 2. Sinh ra Access Token và Refresh Token mới
+    new_access_token = service.auth_service.create_access_token(
+        data={"sub": str(user.id), "role": user.role.name}
+    )
+    new_refresh_token = service.auth_service.create_refresh_token(
+        data={"sub": str(user.id)}
+    )
+    
+    # 3. Trả về cho Vue (giống hệt cấu trúc lúc Login)
+    return TokenResponse(
+        access_token=new_access_token,
+        refresh_token=new_refresh_token,
+        role=user.role.name
+    )
+# ==========================================
+
 @router.get("/users", response_model=List[UserAdminResponse])
 def list_users(
     role_id: int = Query(None), search: str = Query(None),
@@ -47,7 +81,7 @@ def ban_user(
     service: AdminManagementService = Depends(get_management_service),
     admin: Users = Depends(get_current_admin)
 ):
-    return service.ban_user(user_id, data.reason, admin.id)
+    return service.ban_user(user_id, data.reason, admin)
 
 @router.patch("/users/{user_id}/unban")
 def unban_user(
@@ -75,7 +109,7 @@ def edit_role(
     current_admin: Users = Depends(get_current_admin)
 ):
     """Cập nhật thông tin chức vụ (Chỉ dành cho Admin)"""
-    return service.update_role(role_id, data, current_admin.id)
+    return service.update_role(role_id, data, current_admin)
 
 @router.delete("/roles/{role_id}")
 def delete_role(
@@ -84,4 +118,4 @@ def delete_role(
     current_admin: Users = Depends(get_current_admin)
 ):
     """Xóa chức vụ ra khỏi hệ thống"""
-    return service.delete_role(role_id, current_admin.id)
+    return service.delete_role(role_id, current_admin)

@@ -60,7 +60,7 @@ def create_role(
     current_admin: Users = Depends(get_current_admin)
 ):
     """Tạo thêm chức vụ mới cho hệ thống"""
-    return service.add_new_role(data, current_admin.id)
+    return service.add_new_role(data, current_admin)
 
 # --- 3. NHẬT KÝ HỆ THỐNG (AUDIT LOGS) ---
 

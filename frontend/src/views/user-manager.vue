@@ -140,7 +140,7 @@ interface User {
   full_name: string;
   email: string;
   created_at: string;
-  status: string;     
+  status: string;    
   role_id: number;    
 }
 
@@ -320,8 +320,16 @@ const goBack = () => window.history.back();
 .back-btn:hover { background: #f9fafb; border-color: #d1d5db; }
 
 /* Toolbar (Search & Filter) */
-.toolbar { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
-.search-wrapper { flex: 1; min-width: 250px; }
+.toolbar { 
+  display: flex; 
+  gap: 16px; 
+  margin-bottom: 20px; 
+  align-items: center; /* Đảm bảo căn giữa theo chiều dọc */
+}
+.search-wrapper { 
+  flex: 1; 
+  max-width: 500px; /* Thêm max-width để thanh search không bị kéo dài vô cực trên desktop */
+}
 .search-input { 
   width: 100%; 
   padding: 10px 14px; 
@@ -330,8 +338,12 @@ const goBack = () => window.history.back();
   font-size: 14px;
   outline: none;
   transition: border-color 0.2s;
+  box-sizing: border-box; /* Đảm bảo padding không làm tràn width */
 }
 .search-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+.filters {
+  flex-shrink: 0; /* Giữ nguyên kích thước cho khối filter */
+}
 .filter-select { 
   padding: 10px 14px; 
   border: 1px solid #e5e7eb; 
@@ -340,6 +352,7 @@ const goBack = () => window.history.back();
   background-color: white;
   outline: none;
   cursor: pointer;
+  min-width: 180px; /* Cho độ rộng mặc định đẹp mắt */
 }
 
 /* Table */
@@ -440,4 +453,48 @@ const goBack = () => window.history.back();
   font-weight: 500;
 }
 .btn-cancel:hover { background: #e5e7eb; }
+
+/* ==========================================================
+   RESPONSIVE CHO IPHONE 14 PRO MAX (CHIỀU RỘNG MÀN 430px) 
+   ========================================================== */
+@media (max-width: 430px) {
+  .user-management-container {
+    padding: 16px 12px; /* Ép viền sát lại cho màn nhỏ */
+  }
+
+  .page-header {
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+
+  /* Chuyển Toolbar từ nằm ngang sang bẻ cột dọc */
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  /* Thanh search full 100% thay vì bị giới hạn */
+  .search-wrapper {
+    max-width: 100%;
+  }
+
+  /* Khối filter full 100% cho dễ bấm trên điện thoại */
+  .filters, .filter-select {
+    width: 100%;
+    min-width: unset;
+    box-sizing: border-box;
+  }
+
+  /* Ép padding bảng nhỏ lại để hiển thị được nhiều hơn */
+  .users-table th, .users-table td {
+    padding: 12px 16px;
+  }
+
+  /* Resize modal nhỏ lại cho vừa mobile */
+  .modal-content {
+    padding: 20px;
+    width: 95%;
+  }
+}
 </style>
