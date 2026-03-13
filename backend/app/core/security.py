@@ -5,7 +5,8 @@ from jose import jwt, JWTError
 from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import get_db
-from app.models.models import Users
+from app.models.models import Users, Roles
+
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/admin/login")
 
@@ -38,12 +39,15 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     return user
 
 def get_current_admin(current_user: Users = Depends(get_current_user)):
-    """Kiểm tra xem user hiện tại có phải là Admin không"""
-    # Tùy logic của bạn, ở đây giả sử role.name là 'admin'
-    if current_user.role.name not in ["admin", "super_admin"]:
+    """Kiểm tra xem user hiện tại có quyền truy cập trang Admin không"""
+    
+    # Thêm 'moderator' vào danh sách các role được phép qua cửa
+    allowed_roles = ["admin", "super_admin", "moderator"]
+    
+    if current_user.role.name.lower() not in allowed_roles:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Bạn không có quyền thực hiện hành động này!"
+            detail="Bạn không có quyền truy cập vào khu vực quản trị!"
         )
     return current_user
 

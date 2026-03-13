@@ -11,11 +11,12 @@ class AdminRepository:
         self.db = db
 
     def get_admin_by_email(self, email: str) -> Optional[Users]:
-        """Lấy user có role là 'admin' và status là 'active'"""
+        """Lấy user có role là 'admin',  hoặc 'moderator' và status là 'active'"""
         return self.db.query(Users).join(Roles).filter(
             Users.email == email,
             Users.status == 'active',
-            Roles.name == 'admin' 
+            # Dùng in_() để cho phép mảng các role được phép đăng nhập trang Admin
+            Roles.name.in_(['admin', 'moderator']) 
         ).first()
     
 class AdminManagementRepository:
