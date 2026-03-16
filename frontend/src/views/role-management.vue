@@ -112,6 +112,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
+import { fetchWithAuth } from '../api/index.js';
 
 interface Role {
   id: number;
@@ -122,13 +123,14 @@ interface Role {
   createdAt: string;
 }
 
-const API_BASE_URL = 'http://localhost:8000/admin';
+// @ts-ignore
+const API_BASE_URL = import.meta.env?.VITE_API_URL || 'http://127.0.0.1:8000';
 
 const searchQuery = ref('');
 const isLoading = ref(false);
 const roles = ref<Role[]>([]); 
 
-//lấy màu ở đây
+// lấy màu ở đây
 const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#6366f1'];
 
 const formModal = ref({
@@ -155,23 +157,16 @@ const filteredRoles = computed(() => {
   );
 });
 
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('access_token');
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`
-  };
-};
-
 const fetchRoles = async () => {
   try {
     isLoading.value = true;
-    const response = await fetch(`${API_BASE_URL}/roles`, {
-      method: 'GET',
-      headers: getAuthHeaders()
+    const response = await fetchWithAuth(`${API_BASE_URL}/admin/roles`, {
+      method: 'GET'
     });
     
+    if (response.status === 403) throw new Error('Bạn không có quyền xem danh sách này.');
     if (!response.ok) throw new Error('Không thể tải danh sách quyền hạn');
+    
     const data = await response.json();
     
     roles.value = data.map((item: any, index: number) => ({
@@ -183,8 +178,9 @@ const fetchRoles = async () => {
       createdAt: new Date().toISOString() 
     }));
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('Lỗi khi fetch roles:', error);
+    if (error.message !== 'Failed to fetch') alert(error.message);
   } finally {
     isLoading.value = false;
   }
@@ -199,27 +195,27 @@ const submitForm = async () => {
     };
 
     if (formModal.value.mode === 'add') {
-      const response = await fetch(`${API_BASE_URL}/roles`, {
+      const response = await fetchWithAuth(`${API_BASE_URL}/admin/roles`, {
         method: 'POST',
-        headers: getAuthHeaders(),
         body: JSON.stringify(payload)
       });
+      if (response.status === 403) throw new Error('Bạn không có quyền thêm mới quyền hạn.');
       if (!response.ok) throw new Error('Lỗi khi thêm quyền hạn');
     } else {
-      const response = await fetch(`${API_BASE_URL}/roles/${formData.value.id}`, {
+      const response = await fetchWithAuth(`${API_BASE_URL}/admin/roles/${formData.value.id}`, {
         method: 'PUT',
-        headers: getAuthHeaders(),
         body: JSON.stringify(payload)
       });
+      if (response.status === 403) throw new Error('Bạn không có quyền chỉnh sửa quyền hạn.');
       if (!response.ok) throw new Error('Lỗi khi cập nhật quyền hạn');
     }
     
     closeForm();
     await fetchRoles(); 
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error:', error);
-    alert('Có lỗi xảy ra, vui lòng thử lại!');
+    alert(error.message || 'Có lỗi xảy ra, vui lòng thử lại!');
   } finally {
     isLoading.value = false;
   }
@@ -228,19 +224,19 @@ const submitForm = async () => {
 const confirmDelete = async () => {
   isLoading.value = true;
   try {
-    const response = await fetch(`${API_BASE_URL}/roles/${deleteConfirm.value.roleId}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders()
+    const response = await fetchWithAuth(`${API_BASE_URL}/admin/roles/${deleteConfirm.value.roleId}`, {
+      method: 'DELETE'
     });
     
+    if (response.status === 403) throw new Error('Bạn không có quyền xóa quyền hạn.');
     if (!response.ok) throw new Error('Lỗi khi xóa quyền hạn');
     
     roles.value = roles.value.filter(r => r.id !== deleteConfirm.value.roleId);
     cancelDelete();
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error:', error);
-    alert('Không thể xóa quyền hạn này!');
+    alert(error.message || 'Không thể xóa quyền hạn này!');
   } finally {
     isLoading.value = false;
   }

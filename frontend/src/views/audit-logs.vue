@@ -79,6 +79,12 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
+// Import fetchWithAuth để đồng bộ cơ chế Refresh Token
+import { fetchWithAuth } from '../api/index.js';
+
+// Đồng bộ URL với Dashboard
+// @ts-ignore
+const API_BASE_URL = import.meta.env?.VITE_API_URL || 'http://127.0.0.1:8000';
 
 interface AuditLog {
   id: number;
@@ -100,20 +106,14 @@ const fetchAuditLogs = async () => {
   error.value = '';
   
   try {
-    const token = localStorage.getItem('access_token'); 
-    
-    const response = await fetch('http://127.0.0.1:8000/admin/audit-logs?limit=100', {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
+    // Gọi API qua fetchWithAuth để lỡ token hết hạn nó tự xin lại
+    const response = await fetchWithAuth(`${API_BASE_URL}/admin/audit-logs?limit=100`, {
+      method: 'GET'
     });
 
-    if (response.status === 401 || response.status === 403) {
-      localStorage.removeItem('access_token');
-      window.location.href = '/login';
-      throw new Error('Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.');
+    // Lúc này lỗi 401 đã được fetchWithAuth lo, mình chỉ bắt lỗi 403 (cấm truy cập) và các lỗi khác
+    if (response.status === 403) {
+      throw new Error('Bạn không có quyền xem nhật ký hệ thống.');
     }
 
     if (!response.ok) throw new Error('Không thể tải dữ liệu từ máy chủ.');

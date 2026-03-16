@@ -4,7 +4,9 @@ from typing import List
 import redis
 from fastapi import HTTPException, status
 import logging
-
+from app.models.models import Users, Conversations, Messages, DashboardDailyStats
+from sqlalchemy import func
+from datetime import date, datetime
 from app.repositories.dashboard_repo import DashboardRepository
 from app.schemas.dashboard_schema import (
     DashboardSummaryResponse, 
@@ -14,6 +16,9 @@ from app.schemas.dashboard_schema import (
 # Nhớ tạo file redis_client.py và cấu hình như hướng dẫn trước đó
 from app.core.redis_client import redis_client
 from app.core.config import settings
+
+# --- BỔ SUNG 1: Import Model DashboardDailyStats ---
+from app.models.models import DashboardDailyStats
 
 logger = logging.getLogger(__name__)
 
@@ -143,3 +148,86 @@ class DashboardService:
             self.redis.delete(cache_key)
         except redis.exceptions.ConnectionError:
             pass # Nếu Redis sập thì thôi, không cần xóa cache
+
+    # ==========================================
+    # --- BỔ SUNG 2: Hàm truy vấn dữ liệu Cronjob ---
+    # ==========================================
+    def get_cronjob_stats(self, days: int):
+        """
+        Truy vấn dữ liệu từ bảng DashboardDailyStats do Cronjob tổng hợp mỗi đêm
+        """
+        stats = self.db.query(DashboardDailyStats)\
+                       .order_by(DashboardDailyStats.date.desc())\
+                       .limit(days)\
+                       .all()
+        # Đảo ngược để dữ liệu xếp theo thứ tự thời gian từ cũ tới mới (dành cho việc vẽ biểu đồ)
+        stats.reverse()
+        return stats
+    
+    # Nhớ thêm 2 dòng import này ở đầu file dashboard_service.py nếu chưa có nhé:
+# from sqlalchemy import func
+# from app.models.models import Users, Conversations, Messages
+
+# Dán hàm này xuống DƯỚI CÙNG của file dashboard_service.py (bên ngoài class DashboardService)
+def calculate_daily_stats(db: Session):
+    """
+    Hàm này dùng để Cronjob chạy mỗi đêm, quét toàn bộ DB và lưu chốt sổ vào bảng DashboardDailyStats
+    """
+    today = date.today()
+    start_of_day = datetime.combine(today, datetime.min.time())
+    
+    print(f"Bắt đầu tổng hợp dữ liệu cho ngày: {today}")
+
+    # 1. Tổng người dùng
+    total_users = db.query(func.count(Users.id)).scalar() or 0
+
+    # 2. User hoạt động trong 24h qua
+    active_users = db.query(func.count(func.distinct(Conversations.user_id)))\
+        .join(Messages, Messages.conversation_id == Conversations.id)\
+        .filter(Messages.created_at >= start_of_day).scalar() or 0
+
+    # 3. Số đoạn chat mới tạo trong hôm nay
+    new_chats = db.query(func.count(Conversations.id))\
+        .filter(Conversations.created_at >= start_of_day).scalar() or 0
+
+    # 4. Tổng tin nhắn toàn hệ thống
+    total_messages = db.query(func.count(Messages.id)).scalar() or 0
+
+    # 5. Tỷ lệ tin nhắn User / AI trong hôm nay
+    messages_today = db.query(Messages.role, func.count(Messages.id))\
+        .filter(Messages.created_at >= start_of_day)\
+        .group_by(Messages.role).all()
+    
+    user_msg_count = 0
+    ai_bot_msg_count = 0
+    
+    for role, count in messages_today:
+        if role == 'user':
+            user_msg_count = count
+        elif role == 'ai':
+            ai_bot_msg_count = count
+
+    # --- LƯU VÀO DATABASE ---
+    stat_record = db.query(DashboardDailyStats).filter(DashboardDailyStats.date == today).first()
+    
+    if not stat_record:
+        stat_record = DashboardDailyStats(
+            date=today,
+            total_users=total_users,
+            active_users=active_users,
+            new_chats=new_chats,
+            total_messages=total_messages,
+            user_msg_count=user_msg_count,
+            ai_bot_msg_count=ai_bot_msg_count
+        )
+        db.add(stat_record)
+    else:
+        stat_record.total_users = total_users
+        stat_record.active_users = active_users
+        stat_record.new_chats = new_chats
+        stat_record.total_messages = total_messages
+        stat_record.user_msg_count = user_msg_count
+        stat_record.ai_bot_msg_count = ai_bot_msg_count
+
+    db.commit()
+    print(f"✅ Đã lưu thành công dữ liệu ngày {today} vào bảng DashboardDailyStats!")

@@ -147,4 +147,24 @@ class Reports(Base):
     post = relationship('ForumPosts', back_populates='reports')
     comment = relationship('ForumComments', back_populates='reports')
 
+# --- NHÓM 5: THỐNG KÊ DASHBOARD (PRE-AGGREGATION) ---
+
+class DashboardDailyStats(Base):
+    __tablename__ = 'dashboard_daily_stats'
+
+    # Dùng luôn ngày (Date) làm Khóa chính vì mỗi ngày chỉ có 1 dòng thống kê
+    date = Column(Date, primary_key=True, index=True) 
     
+    # Số liệu Users
+    total_users = Column(Integer, default=0, nullable=False)
+    active_users = Column(Integer, default=0, nullable=False)
+    
+    # Số liệu Chat
+    new_chats = Column(Integer, default=0, nullable=False)
+    total_messages = Column(Integer, default=0, nullable=False)
+    user_msg_count = Column(Integer, default=0, nullable=False)
+    ai_bot_msg_count = Column(Integer, default=0, nullable=False)
+    
+    # Thời gian bản ghi được tạo/cập nhật
+    created_at = Column(DateTime, server_default=text('CURRENT_TIMESTAMP'))
+    updated_at = Column(DateTime, server_default=text('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'))

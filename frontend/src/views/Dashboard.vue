@@ -135,16 +135,38 @@
 
     <div v-if="!loading" class="charts-section">
       <div class="chart-card">
-        <div class="chart-header">
-          <h3>Thống kê Tin nhắn</h3>
-          <p class="chart-subtitle">7 ngày gần nhất (User + AI)</p>
+        <div class="chart-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <h3>Thống kê Tin nhắn</h3>
+            <p class="chart-subtitle">7 ngày gần nhất</p>
+          </div>
+          <div style="display: flex; gap: 12px; font-size: 12px; color: #64748b; margin-top: 4px;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="width: 12px; height: 12px; background-color: #94a3b8; border-radius: 3px;"></span> AI Bot
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="width: 12px; height: 12px; background-color: #60a5fa; border-radius: 3px;"></span> User
+            </div>
+          </div>
         </div>
+
         <div class="chart-container">
           <div class="chart-bars">
             <div v-for="(item, index) in chartItems" :key="index" class="chart-column">
-              <div class="chart-bar" :class="{ active: index === chartItems.length - 1 }"
-                :style="{ height: item.heightPercent + '%' }" :data-value="formatNumber(item.total)"
-                :title="`${item.fullDate}: ${item.total} tin nhắn`"></div>
+              <div class="chart-bar stacked-bar" 
+                   :class="{ active: index === chartItems.length - 1 }"
+                   :style="`height: ${item.heightPercent}%;`" 
+                   :data-value="formatNumber(item.total)"
+                   :title="`${item.fullDate}&#10;Tổng: ${item.total} tin&#10;User: ${item.user}&#10;AI Bot: ${item.ai}`">
+                   
+                   <div v-if="item.ai > 0" class="bar-segment ai-segment"
+                        :style="`height: ${item.aiPercentInner}%;`">
+                   </div>
+                   
+                   <div v-if="item.user > 0" class="bar-segment user-segment"
+                        :style="`height: ${item.userPercentInner}%;`">
+                   </div>
+              </div>
               <span class="chart-label">{{ item.dayLabel }}</span>
             </div>
           </div>
@@ -192,7 +214,6 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router'; 
-// Import hàm fetchWithAuth để xử lý việc tự động refresh token
 import { fetchWithAuth } from '../api/index.js'; 
 
 // @ts-ignore
@@ -220,7 +241,6 @@ const goBack = () => { window.history.back(); };
 
 const handleLogout = () => {
   if (confirm("Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?")) {
-    // Phải xóa cả 2 token nhé
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     router.push('/login');
@@ -239,54 +259,64 @@ const fetchData = async () => {
   try {
     loading.value = true;
     
-    // Gọi API thông qua hàm fetchWithAuth để tận dụng tính năng tự refresh token
-    const [summaryRes, chartRes] = await Promise.all([
-      fetchWithAuth(`${API_BASE_URL}/dashboard/summary`),
-      fetchWithAuth(`${API_BASE_URL}/dashboard/charts/messages?days=7`)
-    ]);
+    const response = await fetchWithAuth(`${API_BASE_URL}/dashboard/cron_stats?days=7`);
 
-    if (!summaryRes.ok || !chartRes.ok) {
-        throw new Error("Không thể tải dữ liệu.");
+    if (!response.ok) {
+        throw new Error("Không thể tải dữ liệu thống kê.");
     }
 
-    const summaryData = await summaryRes.json();
-    const rawChartData = await chartRes.json();
+    const rawData = await response.json(); 
 
-    stats.value = summaryData;
+    if (rawData && rawData.length > 0) {
+        const todayData = rawData[rawData.length - 1]; 
+        
+        stats.value = {
+            total_users: todayData.total_users || 0,
+            new_users_today: 0,
+            active_users_24h: todayData.active_users || 0,
+            new_conversations_today: todayData.new_chats || 0,
+            total_messages: todayData.total_messages || 0,
+        };
 
-    let maxVal = 0, sumUser = 0, sumAI = 0;
+        let maxVal = 0, sumUser = 0, sumAI = 0;
 
-    const processedData = rawChartData.map(item => {
-      const total = item.user_count + item.ai_count;
-      if (total > maxVal) maxVal = total;
-      sumUser += item.user_count;
-      sumAI += item.ai_count;
-      return {
-        dayLabel: getDayLabel(item.date),
-        fullDate: item.date,
-        total: total,
-        user: item.user_count,
-        ai: item.ai_count,
-        heightPercent: 0
-      };
-    });
+        const processedData = rawData.map(item => {
+            const userCount = item.user_msg_count ?? item.user_count ?? 0;
+            const aiCount = item.ai_bot_msg_count ?? item.ai_count ?? 0;
+            const total = userCount + aiCount;
+            
+            if (total > maxVal) maxVal = total;
+            sumUser += userCount;
+            sumAI += aiCount;
+            
+            return {
+                dayLabel: getDayLabel(item.date),
+                fullDate: item.date,
+                total: total,
+                user: userCount,
+                ai: aiCount,
+                userPercentInner: total > 0 ? (userCount / total) * 100 : 0,
+                aiPercentInner: total > 0 ? (aiCount / total) * 100 : 0,
+                heightPercent: 0
+            };
+        });
 
-    chartItems.value = processedData.map(item => ({
-      ...item,
-      heightPercent: maxVal > 0 ? (item.total / maxVal) * 100 : 0
-    }));
+        chartItems.value = processedData.map(item => ({
+            ...item,
+            heightPercent: maxVal > 0 ? (item.total / maxVal) * 100 : 0
+        }));
 
-    const totalPeriod = sumUser + sumAI;
-    msgDist.value = {
-      userTotal: sumUser,
-      aiTotal: sumAI,
-      totalPeriod: totalPeriod,
-      userPercent: totalPeriod > 0 ? Math.round((sumUser / totalPeriod) * 100) : 0,
-      aiPercent: totalPeriod > 0 ? Math.round((sumAI / totalPeriod) * 100) : 0,
-    };
+        const totalPeriod = sumUser + sumAI;
+        msgDist.value = {
+            userTotal: sumUser,
+            aiTotal: sumAI,
+            totalPeriod: totalPeriod,
+            userPercent: totalPeriod > 0 ? Math.round((sumUser / totalPeriod) * 100) : 0,
+            aiPercent: totalPeriod > 0 ? Math.round((sumAI / totalPeriod) * 100) : 0,
+        };
+    }
   } catch (error) {
     console.error("Lỗi khi tải Dashboard:", error);
-    // Lưu ý: Việc redirect về /login khi hết hạn token đã được hàm fetchWithAuth tự lo rồi
   } finally {
     loading.value = false;
   }
@@ -306,3 +336,47 @@ onMounted(() => {
 </script>
 
 <style scoped src="../assets/css/dashboard.css"></style>
+
+<style scoped>
+/* Cấu hình chung cho cột xếp chồng */
+.stacked-bar {
+  padding: 0 !important;
+  display: flex !important;
+  flex-direction: column;
+  justify-content: flex-end;
+  overflow: hidden;
+  background-color: transparent !important;
+  border: none !important;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Các mảng màu bên trong cột (màu đậm hơn) */
+.bar-segment {
+  width: 100%;
+  transition: height 0.5s ease;
+}
+.ai-segment {
+  background-color: #94a3b8; /* cool grey darker */
+}
+.user-segment {
+  background-color: #60a5fa; /* vibrant blue darker */
+}
+
+/* KHU VỰC MA THUẬT HIỆU ỨNG HOVER */
+
+/* 1. Khi hover vào vùng chứa biểu đồ, LÀM MỜ TẤT CẢ các cột */
+/* .chart-bars:hover .stacked-bar {
+  opacity: 0.4;
+  filter: grayscale(40%);
+} */
+
+/* 2. Riêng cái cột ĐANG ĐƯỢC HOVER thì: Sáng lên, nổi bật lên và phóng to nhẹ */
+.chart-bars .stacked-bar:hover {
+  opacity: 1;
+  filter: brightness(1.1) grayscale(0%);
+  transform: scaleY(1.02) translateY(-2px); /* Nhô lên một chút xíu */
+  box-shadow: 0 4px 12px rgba(96, 165, 250, 0.5); /* Tạo vầng sáng bóng đổ màu phù hợp */
+  z-index: 10;
+}
+</style>

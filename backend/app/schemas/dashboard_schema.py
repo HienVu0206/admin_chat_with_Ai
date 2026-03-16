@@ -1,6 +1,7 @@
 from pydantic import BaseModel, ConfigDict
 from typing import Optional
 from datetime import datetime
+from datetime import date
 
 # --- 1. Schema cho các Card thống kê (Summary) ---
 class DashboardSummaryResponse(BaseModel):
@@ -28,4 +29,20 @@ class PendingReportItem(BaseModel):
     target_type: str  # 'Post', 'Comment', 'User'
 
     # Sửa lại theo chuẩn Pydantic V2 (Thay thế cho class Config)
+    model_config = ConfigDict(from_attributes=True)
+
+class DailyStatItem(BaseModel):
+    date: date
+    total_users: int
+    active_users: int
+    new_chats: int
+    total_messages: int
+    user_msg_count: int
+    ai_bot_msg_count: int
+    
+    # Dùng Optional vì các trường server_default đôi khi schema đọc ra bị khuyết
+    created_at: Optional[datetime] = None 
+    updated_at: Optional[datetime] = None
+
+    # Dùng chuẩn Pydantic V2 cho đồng bộ với class PendingReportItem của bạn ở trên
     model_config = ConfigDict(from_attributes=True)

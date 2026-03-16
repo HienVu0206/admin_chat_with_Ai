@@ -33,7 +33,7 @@
       <table class="users-table">
         <thead>
           <tr>
-            <th>ID</th>
+            <!-- <th>ID</th> -->
             <th>Người dùng</th>
             <th>Trạng thái</th>
             <th>Quyền hạn</th>
@@ -47,7 +47,7 @@
             </td>
           </tr>
           <tr v-for="user in users" :key="user.id">
-            <td>#{{ user.id }}</td>
+            <!-- <td>#{{ user.id }}</td> -->
             <td class="user-info">
               <div class="user-name">{{ user.full_name }}</div>
               <div class="user-email">{{ user.email }}</div>
@@ -128,9 +128,10 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import axios from 'axios';
+// Import fetchWithAuth để đồng bộ cơ chế Refresh Token
+import { fetchWithAuth } from '../api/index.js';
 
-// Cấu hình URL Backend (sử dụng biến môi trường hoặc fallback về localhost)
+// Cấu hình URL Backend
 // @ts-ignore
 const API_BASE_URL = import.meta.env?.VITE_API_URL || 'http://127.0.0.1:8000';
 
@@ -163,23 +164,19 @@ const confirmDialog = ref({
   reason: '' 
 });
 
-// Hàm lấy Headers cho Axios (đính kèm Token)
-const getHeaders = () => {
-  const token = localStorage.getItem('access_token');
-  return { 
-    headers: { Authorization: `Bearer ${token}` } 
-  };
-};
-
 // Hàm gọi API lấy danh sách người dùng
 const fetchUsers = async () => {
   try {
-    const params: any = {};
-    if (searchQuery.value) params.search = searchQuery.value;
-    if (filterRoleId.value) params.role_id = filterRoleId.value;
+    const params = new URLSearchParams();
+    if (searchQuery.value) params.append('search', searchQuery.value);
+    if (filterRoleId.value) params.append('role_id', filterRoleId.value.toString());
     
-    const res = await axios.get(`${API_BASE_URL}/admin/users`, { ...getHeaders(), params });
-    users.value = res.data;
+    const url = `${API_BASE_URL}/admin/users${params.toString() ? '?' + params.toString() : ''}`;
+    
+    const res = await fetchWithAuth(url, { method: 'GET' });
+    if (!res.ok) throw new Error('Không thể tải danh sách người dùng');
+    
+    users.value = await res.json();
   } catch (e) { 
     console.error('Lỗi khi tải danh sách người dùng:', e); 
   }
@@ -188,8 +185,10 @@ const fetchUsers = async () => {
 // Hàm gọi API lấy danh sách Role
 const fetchRoles = async () => {
     try {
-        const res = await axios.get(`${API_BASE_URL}/admin/roles`, getHeaders());
-        rolesList.value = res.data;
+        const res = await fetchWithAuth(`${API_BASE_URL}/admin/roles`, { method: 'GET' });
+        if (!res.ok) throw new Error('Không thể tải danh sách quyền');
+        
+        rolesList.value = await res.json();
     } catch (e) { 
         console.error('Lỗi khi tải danh sách quyền:', e); 
     }
@@ -236,26 +235,28 @@ const submitChange = async () => {
   closeConfirm();
 
   try {
+    let res;
     if (action === 'change_role') {
-      await axios.put(
-        `${API_BASE_URL}/admin/users/${data.userId}/role`, 
-        { new_role_id: data.newRoleId }, 
-        getHeaders()
-      );
+      res = await fetchWithAuth(`${API_BASE_URL}/admin/users/${data.userId}/role`, {
+        method: 'PUT',
+        body: JSON.stringify({ new_role_id: data.newRoleId })
+      });
     } 
     else if (action === 'ban') {
-      await axios.patch(
-        `${API_BASE_URL}/admin/users/${data.userId}/ban`,
-        { reason: reason }, // Body theo schema BanUserRequest
-        getHeaders()
-      );
+      res = await fetchWithAuth(`${API_BASE_URL}/admin/users/${data.userId}/ban`, {
+        method: 'PATCH',
+        body: JSON.stringify({ reason: reason })
+      });
     }
     else if (action === 'unban') {
-      await axios.patch(
-        `${API_BASE_URL}/admin/users/${data.userId}/unban`,
-        null,
-        getHeaders()
-      );
+      res = await fetchWithAuth(`${API_BASE_URL}/admin/users/${data.userId}/unban`, {
+        method: 'PATCH'
+      });
+    }
+    
+    if (res && !res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.detail || 'Lỗi từ máy chủ API');
     }
     
     // Tải lại danh sách sau khi thay đổi thành công
@@ -263,8 +264,7 @@ const submitChange = async () => {
     alert("Thao tác thành công!");
   } catch (error: any) {
     console.error(error);
-    const msg = error.response?.data?.detail || "Đã xảy ra lỗi từ máy chủ API";
-    alert("Lỗi: " + (typeof msg === 'string' ? msg : JSON.stringify(msg)));
+    alert("Lỗi: " + error.message);
   }
 };
 
