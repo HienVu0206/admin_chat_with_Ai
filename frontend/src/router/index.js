@@ -36,6 +36,12 @@ const routes = [
         path: '/role-management',
         name: 'RoleManagement',
         component: RoleManagement
+    },
+    {
+        path: '/chat-sesions', // Sửa lại lỗi gõ thiếu chữ 's'
+        name: 'ChatSessions',
+        // Dùng import động (lazy load) trỏ thẳng tới file, sếp nhớ check lại TÊN FILE cho khớp nhé
+        component: () => import('../views/chat-sesions.vue') 
     }
 ]
 

@@ -41,6 +41,13 @@
                 Quản lý Users
               </router-link>
 
+             <router-link to="/chat-sesions" class="action-btn chat-btn" @click="isMenuOpen = false">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+                Đoạn Chat
+              </router-link>
+
               <router-link to="/audit-logs" class="action-btn audit-btn" @click="isMenuOpen = false">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -364,12 +371,6 @@ onMounted(() => {
 }
 
 /* KHU VỰC MA THUẬT HIỆU ỨNG HOVER */
-
-/* 1. Khi hover vào vùng chứa biểu đồ, LÀM MỜ TẤT CẢ các cột */
-/* .chart-bars:hover .stacked-bar {
-  opacity: 0.4;
-  filter: grayscale(40%);
-} */
 
 /* 2. Riêng cái cột ĐANG ĐƯỢC HOVER thì: Sáng lên, nổi bật lên và phóng to nhẹ */
 .chart-bars .stacked-bar:hover {

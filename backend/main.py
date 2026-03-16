@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import admin, dashboard, admin_manager
+from app.routers import admin, dashboard, admin_manager, admin_chat
 
 # --- BỔ SUNG 1: Import các thư viện cho Cronjob và Database ---
 from contextlib import asynccontextmanager
@@ -53,6 +53,7 @@ app.add_middleware(
 app.include_router(admin.router)
 app.include_router(dashboard.router)
 app.include_router(admin_manager.router)
+app.include_router(admin_chat.router)
 
 @app.get("/")
 def read_root():
