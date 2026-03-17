@@ -223,7 +223,6 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router'; 
 import { fetchWithAuth } from '../api/index.js'; 
 
-// @ts-ignore
 const API_BASE_URL = import.meta.env?.VITE_API_URL || 'http://127.0.0.1:8000';
 
 const router = useRouter(); 
@@ -345,7 +344,18 @@ onMounted(() => {
 <style scoped src="../assets/css/dashboard.css"></style>
 
 <style scoped>
-/* Cấu hình chung cho cột xếp chồng */
+/* FIX MÀU NỀN CHO NÚT ĐOẠN CHAT */
+.chat-btn {
+  background-color: #f3e8ff; /* Nền tím nhạt pastel */
+  color: #7e22ce; /* Chữ tím đậm */
+  border: 1px solid #e9d5ff; /* Viền tím nhạt xíu */
+}
+
+.chat-btn:hover {
+  background-color: #e9d5ff;
+}
+
+/* Các cấu hình cột trước đó của sếp */
 .stacked-bar {
   padding: 0 !important;
   display: flex !important;
@@ -358,26 +368,22 @@ onMounted(() => {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
-/* Các mảng màu bên trong cột (màu đậm hơn) */
 .bar-segment {
   width: 100%;
   transition: height 0.5s ease;
 }
 .ai-segment {
-  background-color: #94a3b8; /* cool grey darker */
+  background-color: #94a3b8;
 }
 .user-segment {
-  background-color: #60a5fa; /* vibrant blue darker */
+  background-color: #60a5fa; 
 }
 
-/* KHU VỰC MA THUẬT HIỆU ỨNG HOVER */
-
-/* 2. Riêng cái cột ĐANG ĐƯỢC HOVER thì: Sáng lên, nổi bật lên và phóng to nhẹ */
 .chart-bars .stacked-bar:hover {
   opacity: 1;
   filter: brightness(1.1) grayscale(0%);
-  transform: scaleY(1.02) translateY(-2px); /* Nhô lên một chút xíu */
-  box-shadow: 0 4px 12px rgba(96, 165, 250, 0.5); /* Tạo vầng sáng bóng đổ màu phù hợp */
+  transform: scaleY(1.02) translateY(-2px); 
+  box-shadow: 0 4px 12px rgba(96, 165, 250, 0.5); 
   z-index: 10;
 }
 </style>

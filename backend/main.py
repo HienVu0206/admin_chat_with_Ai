@@ -22,9 +22,9 @@ async def lifespan(app: FastAPI):
     # KHI BẬT SERVER: Khởi động Scheduler
     scheduler = BackgroundScheduler()
     # Cài đặt lịch: Chạy vào lúc 23:59 mỗi ngày
-    scheduler.add_job(job_run_daily_stats, 'cron', hour=23, minute=59)
+    scheduler.add_job(job_run_daily_stats, 'cron', hour=9, minute=10)
     scheduler.start()
-    print("🕒 Đã bật hệ thống Cronjob: Tính toán thống kê vào 23:59 mỗi ngày!")
+    print("🕒 Đã bật hệ thống Cronjob: Tính toán thống kê vào 09:01 mỗi ngày!")
     
     yield # Cho phép FastAPI tiếp tục chạy các tiến trình khác
     
