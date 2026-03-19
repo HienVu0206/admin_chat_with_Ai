@@ -204,7 +204,7 @@ def calculate_daily_stats(db: Session):
     for role, count in messages_today:
         if role == 'user':
             user_msg_count = count
-        elif role == 'ai':
+        elif role == 'assistant':
             ai_bot_msg_count = count
 
     # --- LƯU VÀO DATABASE ---
