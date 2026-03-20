@@ -169,65 +169,65 @@ class DashboardService:
 # from app.models.models import Users, Conversations, Messages
 
 # Dán hàm này xuống DƯỚI CÙNG của file dashboard_service.py (bên ngoài class DashboardService)
-def calculate_daily_stats(db: Session):
-    """
-    Hàm này dùng để Cronjob chạy mỗi đêm, quét toàn bộ DB và lưu chốt sổ vào bảng DashboardDailyStats
-    """
-    today = date.today()
-    start_of_day = datetime.combine(today, datetime.min.time())
+# def calculate_daily_stats(db: Session):
+#     """
+#     Hàm này dùng để Cronjob chạy mỗi đêm, quét toàn bộ DB và lưu chốt sổ vào bảng DashboardDailyStats
+#     """
+#     today = date.today()
+#     start_of_day = datetime.combine(today, datetime.min.time())
     
-    print(f"Bắt đầu tổng hợp dữ liệu cho ngày: {today}")
+#     print(f"Bắt đầu tổng hợp dữ liệu cho ngày: {today}")
 
-    # 1. Tổng người dùng
-    total_users = db.query(func.count(Users.id)).scalar() or 0
+#     # 1. Tổng người dùng
+#     total_users = db.query(func.count(Users.id)).scalar() or 0
 
-    # 2. User hoạt động trong 24h qua
-    active_users = db.query(func.count(func.distinct(Conversations.user_id)))\
-        .join(Messages, Messages.conversation_id == Conversations.id)\
-        .filter(Messages.created_at >= start_of_day).scalar() or 0
+#     # 2. User hoạt động trong 24h qua
+#     active_users = db.query(func.count(func.distinct(Conversations.user_id)))\
+#         .join(Messages, Messages.conversation_id == Conversations.id)\
+#         .filter(Messages.created_at >= start_of_day).scalar() or 0
 
-    # 3. Số đoạn chat mới tạo trong hôm nay
-    new_chats = db.query(func.count(Conversations.id))\
-        .filter(Conversations.created_at >= start_of_day).scalar() or 0
+#     # 3. Số đoạn chat mới tạo trong hôm nay
+#     new_chats = db.query(func.count(Conversations.id))\
+#         .filter(Conversations.created_at >= start_of_day).scalar() or 0
 
-    # 4. Tổng tin nhắn toàn hệ thống
-    total_messages = db.query(func.count(Messages.id)).scalar() or 0
+#     # 4. Tổng tin nhắn toàn hệ thống
+#     total_messages = db.query(func.count(Messages.id)).scalar() or 0
 
-    # 5. Tỷ lệ tin nhắn User / AI trong hôm nay
-    messages_today = db.query(Messages.role, func.count(Messages.id))\
-        .filter(Messages.created_at >= start_of_day)\
-        .group_by(Messages.role).all()
+#     # 5. Tỷ lệ tin nhắn User / AI trong hôm nay
+#     messages_today = db.query(Messages.role, func.count(Messages.id))\
+#         .filter(Messages.created_at >= start_of_day)\
+#         .group_by(Messages.role).all()
     
-    user_msg_count = 0
-    ai_bot_msg_count = 0
+#     user_msg_count = 0
+#     ai_bot_msg_count = 0
     
-    for role, count in messages_today:
-        if role == 'user':
-            user_msg_count = count
-        elif role == 'assistant':
-            ai_bot_msg_count = count
+#     for role, count in messages_today:
+#         if role == 'user':
+#             user_msg_count = count
+#         elif role == 'assistant':
+#             ai_bot_msg_count = count
 
-    # --- LƯU VÀO DATABASE ---
-    stat_record = db.query(DashboardDailyStats).filter(DashboardDailyStats.date == today).first()
+#     # --- LƯU VÀO DATABASE ---
+#     stat_record = db.query(DashboardDailyStats).filter(DashboardDailyStats.date == today).first()
     
-    if not stat_record:
-        stat_record = DashboardDailyStats(
-            date=today,
-            total_users=total_users,
-            active_users=active_users,
-            new_chats=new_chats,
-            total_messages=total_messages,
-            user_msg_count=user_msg_count,
-            ai_bot_msg_count=ai_bot_msg_count
-        )
-        db.add(stat_record)
-    else:
-        stat_record.total_users = total_users
-        stat_record.active_users = active_users
-        stat_record.new_chats = new_chats
-        stat_record.total_messages = total_messages
-        stat_record.user_msg_count = user_msg_count
-        stat_record.ai_bot_msg_count = ai_bot_msg_count
+#     if not stat_record:
+#         stat_record = DashboardDailyStats(
+#             date=today,
+#             total_users=total_users,
+#             active_users=active_users,
+#             new_chats=new_chats,
+#             total_messages=total_messages,
+#             user_msg_count=user_msg_count,
+#             ai_bot_msg_count=ai_bot_msg_count
+#         )
+#         db.add(stat_record)
+#     else:
+#         stat_record.total_users = total_users
+#         stat_record.active_users = active_users
+#         stat_record.new_chats = new_chats
+#         stat_record.total_messages = total_messages
+#         stat_record.user_msg_count = user_msg_count
+#         stat_record.ai_bot_msg_count = ai_bot_msg_count
 
-    db.commit()
-    print(f"✅ Đã lưu thành công dữ liệu ngày {today} vào bảng DashboardDailyStats!")
+#     db.commit()
+#     print(f"✅ Đã lưu thành công dữ liệu ngày {today} vào bảng DashboardDailyStats!")

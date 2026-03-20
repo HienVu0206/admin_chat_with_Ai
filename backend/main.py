@@ -17,16 +17,38 @@ def job_run_daily_stats():
         db.close() # Đóng kết nối khi tính xong để giải phóng bộ nhớ
 
 # --- BỔ SUNG 3: Quản lý vòng đời ứng dụng (Lifespan) để Bật/Tắt Cronjob ---
+# @asynccontextmanager
+# async def lifespan(app: FastAPI):
+#     # KHI BẬT SERVER: Khởi động Scheduler
+#     scheduler = BackgroundScheduler()
+#     # Cài đặt lịch: Chạy vào lúc 23:59 mỗi ngày
+#     scheduler.add_job(job_run_daily_stats, 'cron', hour=9, minute=10)
+#     scheduler.start()
+#     print("🕒 Đã bật hệ thống Cronjob: Tính toán thống kê vào 09:01 mỗi ngày!")
+    
+#     yield # Cho phép FastAPI tiếp tục chạy các tiến trình khác
+    
+#     # KHI TẮT SERVER: Dọn dẹp Scheduler an toàn
+#     scheduler.shutdown()
+#     print("🛑 Đã tắt an toàn hệ thống Cronjob!")
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # KHI BẬT SERVER: Khởi động Scheduler
     scheduler = BackgroundScheduler()
-    # Cài đặt lịch: Chạy vào lúc 23:59 mỗi ngày
-    scheduler.add_job(job_run_daily_stats, 'cron', hour=9, minute=10)
-    scheduler.start()
-    print("🕒 Đã bật hệ thống Cronjob: Tính toán thống kê vào 09:01 mỗi ngày!")
     
-    yield # Cho phép FastAPI tiếp tục chạy các tiến trình khác
+    # Cài đặt lịch: VD chạy 1 tiếng 1 lần (ở phút thứ 0 của mỗi giờ)
+    # scheduler.add_job(job_run_daily_stats, 'cron', minute=0)
+
+    # Chạy 10 phút 1 lần
+    scheduler.add_job(job_run_daily_stats, 'cron', minute='*/10')
+    # Nếu muốn chạy cố định 09:10 mỗi ngày thì mở comment dòng dưới và xóa dòng trên:
+    # scheduler.add_job(job_run_daily_stats, 'cron', hour=9, minute=10)
+    
+    scheduler.start()
+    print("🕒 Đã bật hệ thống Cronjob: Tính toán thống kê Dashboard tự động!")
+    
+    yield 
     
     # KHI TẮT SERVER: Dọn dẹp Scheduler an toàn
     scheduler.shutdown()

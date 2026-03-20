@@ -5,7 +5,7 @@ from typing import List
 from datetime import datetime, timedelta
 
 # Thêm import hàm này ở đầu file nếu chưa có
-from app.services.dashboard_service import calculate_daily_stats 
+from app.services.cron_dashboard import calculate_daily_stats 
 from app.core.database import get_db
 from app.services.dashboard_service import DashboardService
 
